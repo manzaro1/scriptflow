@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Save, 
@@ -11,19 +11,51 @@ import {
   Type, 
   FileText,
   X,
-  User
+  Sparkles,
+  Scissors,
+  Maximize2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
 
 const ScriptEditor = () => {
   const [showComments, setShowComments] = useState(false);
+  const [selection, setSelection] = useState<{ text: string; rect: DOMRect | null }>({ text: '', rect: null });
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Handle text selection for the floating toolbar
+  const handleMouseUp = () => {
+    const sel = window.getSelection();
+    if (sel && sel.toString().trim().length > 0) {
+      const range = sel.getRangeAt(0);
+      setSelection({
+        text: sel.toString(),
+        rect: range.getBoundingClientRect()
+      });
+    } else {
+      setSelection({ text: '', rect: null });
+    }
+  };
+
+  // Simulate AI actions
+  const handleAIAction = (action: 'enhance' | 'shorten' | 'expand') => {
+    const toastId = showLoading(`AI is ${action}ing your script...`);
+    
+    // Simulate a brief delay for "processing"
+    setTimeout(() => {
+      dismissToast(toastId);
+      showSuccess(`Text successfully ${action}ed!`);
+      setSelection({ text: '', rect: null });
+      // In a real app, we would replace the text here
+    }, 1500);
+  };
 
   return (
     <div className="h-screen flex flex-col bg-[#F9F9F9]">
       {/* Editor Header */}
-      <header className="h-14 border-b bg-white flex items-center px-4 justify-between shrink-0">
+      <header className="h-14 border-b bg-white flex items-center px-4 justify-between shrink-0 z-10">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
             <ArrowLeft size={20} />
@@ -44,7 +76,7 @@ const ScriptEditor = () => {
             <Download size={16} />
             Export
           </Button>
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => showSuccess("Script saved successfully")}>
             <Save size={16} />
             Save
           </Button>
@@ -52,7 +84,48 @@ const ScriptEditor = () => {
       </header>
 
       {/* Editor Main Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Floating AI Toolbar */}
+        {selection.rect && (
+          <div 
+            className="fixed z-50 bg-white border shadow-xl rounded-lg flex items-center p-1 gap-1 animate-in fade-in zoom-in duration-200"
+            style={{ 
+              top: selection.rect.top - 50, 
+              left: selection.rect.left + (selection.rect.width / 2) - 100 
+            }}
+          >
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 gap-2 text-xs"
+              onClick={() => handleAIAction('enhance')}
+            >
+              <Sparkles size={14} className="text-purple-500" />
+              Enhance
+            </Button>
+            <div className="w-px h-4 bg-border" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 gap-2 text-xs"
+              onClick={() => handleAIAction('shorten')}
+            >
+              <Scissors size={14} className="text-blue-500" />
+              Shorten
+            </Button>
+            <div className="w-px h-4 bg-border" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 gap-2 text-xs"
+              onClick={() => handleAIAction('expand')}
+            >
+              <Maximize2 size={14} className="text-green-500" />
+              Expand
+            </Button>
+          </div>
+        )}
+
         {/* Outline Sidebar */}
         <aside className="w-64 border-r bg-white hidden lg:flex flex-col shrink-0">
           <div className="p-4 border-b">
@@ -83,17 +156,22 @@ const ScriptEditor = () => {
           </div>
         </aside>
 
-        {/* The Script Page */}
-        <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-gray-100">
-          <div className="w-[850px] min-h-[1100px] bg-white shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight select-text">
-            <div className="text-center mb-12 uppercase">
+        {/* The Script Page (Editable) */}
+        <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-gray-100" onMouseUp={handleMouseUp}>
+          <div 
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            className="w-[850px] min-h-[1100px] bg-white shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight outline-none cursor-text selection:bg-primary/20"
+          >
+            <div className="text-center mb-12 uppercase" contentEditable={false}>
               <h1 className="text-2xl font-bold">THE NEON HORIZON</h1>
               <p className="mt-2 text-sm">Written by</p>
               <p className="mt-1">Alex Rivers</p>
             </div>
 
             <div className="space-y-6">
-              <div className="relative group">
+              <div>
                 <p className="font-bold uppercase mb-4">EXT. SKYLINE - NIGHT</p>
                 <p>Rain hammers against the metallic skin of the city. Neon signs flicker in shades of bruised purple and electric cyan.</p>
               </div>
@@ -106,7 +184,7 @@ const ScriptEditor = () => {
 
               <p>Kai pulls a small, glowing COIL from his pocket. It pulses with a rhythmic, golden light.</p>
 
-              <div className="px-[15%] text-center bg-yellow-50/50 rounded p-2 border border-transparent hover:border-yellow-200 transition-all">
+              <div className="px-[15%] text-center">
                 <p className="uppercase font-bold mb-1">VEO (V.O.)</p>
                 <p>The deal changed the moment you stepped into Sector 4.</p>
               </div>
