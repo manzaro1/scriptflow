@@ -4,7 +4,6 @@ import React, { useState, useRef } from 'react';
 import { 
   ArrowLeft, 
   Save, 
-  Share2, 
   Download, 
   MessageSquare, 
   List, 
@@ -17,7 +16,8 @@ import {
   FileDown,
   BrainCircuit,
   Eye,
-  UserCircle2
+  UserCircle2,
+  Share2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -32,6 +32,7 @@ import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
 import CharacterProfileModal from "@/components/CharacterProfileModal";
 import CharacterChat from "@/components/CharacterChat";
 import ProductionOverseer from "@/components/ProductionOverseer";
+import ShareScriptModal from "@/components/ShareScriptModal";
 
 const ScriptEditor = () => {
   const [showRightPanel, setShowRightPanel] = useState<'comments' | 'ai' | null>(null);
@@ -105,6 +106,13 @@ const ScriptEditor = () => {
           </Button>
           <div className="h-4 w-px bg-border" />
           
+          <ShareScriptModal>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Share2 size={16} />
+              Share
+            </Button>
+          </ShareScriptModal>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
