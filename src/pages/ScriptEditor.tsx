@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   ArrowLeft, 
   Save, 
@@ -13,11 +13,17 @@ import {
   X,
   Sparkles,
   Scissors,
-  Maximize2
+  Maximize2,
+  FileDown
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
 
 const ScriptEditor = () => {
@@ -25,7 +31,6 @@ const ScriptEditor = () => {
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect | null }>({ text: '', rect: null });
   const editorRef = useRef<HTMLDivElement>(null);
 
-  // Handle text selection for the floating toolbar
   const handleMouseUp = () => {
     const sel = window.getSelection();
     if (sel && sel.toString().trim().length > 0) {
@@ -39,22 +44,38 @@ const ScriptEditor = () => {
     }
   };
 
-  // Simulate AI actions
   const handleAIAction = (action: 'enhance' | 'shorten' | 'expand') => {
     const toastId = showLoading(`AI is ${action}ing your script...`);
-    
-    // Simulate a brief delay for "processing"
     setTimeout(() => {
       dismissToast(toastId);
       showSuccess(`Text successfully ${action}ed!`);
       setSelection({ text: '', rect: null });
-      // In a real app, we would replace the text here
     }, 1500);
+  };
+
+  const handleExport = (format: 'pdf' | 'docx') => {
+    const toastId = showLoading(`Generating ${format.toUpperCase()}...`);
+    
+    // Simulate file generation and download
+    setTimeout(() => {
+      const scriptContent = editorRef.current?.innerText || "Empty Script";
+      const blob = new Blob([scriptContent], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `The_Neon_Horizon.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      dismissToast(toastId);
+      showSuccess(`Script exported as ${format.toUpperCase()}`);
+    }, 1000);
   };
 
   return (
     <div className="h-screen flex flex-col bg-[#F9F9F9]">
-      {/* Editor Header */}
       <header className="h-14 border-b bg-white flex items-center px-4 justify-between shrink-0 z-10">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
@@ -72,10 +93,26 @@ const ScriptEditor = () => {
             <Share2 size={16} />
             Collaborate
           </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download size={16} />
-            Export
-          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download size={16} />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2">
+                <FileDown size={14} className="text-red-500" />
+                Download as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('docx')} className="gap-2">
+                <FileDown size={14} className="text-blue-500" />
+                Download as DOCX
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button size="sm" className="gap-2" onClick={() => showSuccess("Script saved successfully")}>
             <Save size={16} />
             Save
@@ -83,9 +120,7 @@ const ScriptEditor = () => {
         </div>
       </header>
 
-      {/* Editor Main Area */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Floating AI Toolbar */}
         {selection.rect && (
           <div 
             className="fixed z-50 bg-white border shadow-xl rounded-lg flex items-center p-1 gap-1 animate-in fade-in zoom-in duration-200"
@@ -94,39 +129,23 @@ const ScriptEditor = () => {
               left: selection.rect.left + (selection.rect.width / 2) - 100 
             }}
           >
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 gap-2 text-xs"
-              onClick={() => handleAIAction('enhance')}
-            >
+            <Button variant="ghost" size="sm" className="h-8 gap-2 text-xs" onClick={() => handleAIAction('enhance')}>
               <Sparkles size={14} className="text-purple-500" />
               Enhance
             </Button>
             <div className="w-px h-4 bg-border" />
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 gap-2 text-xs"
-              onClick={() => handleAIAction('shorten')}
-            >
+            <Button variant="ghost" size="sm" className="h-8 gap-2 text-xs" onClick={() => handleAIAction('shorten')}>
               <Scissors size={14} className="text-blue-500" />
               Shorten
             </Button>
             <div className="w-px h-4 bg-border" />
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 gap-2 text-xs"
-              onClick={() => handleAIAction('expand')}
-            >
+            <Button variant="ghost" size="sm" className="h-8 gap-2 text-xs" onClick={() => handleAIAction('expand')}>
               <Maximize2 size={14} className="text-green-500" />
               Expand
             </Button>
           </div>
         )}
 
-        {/* Outline Sidebar */}
         <aside className="w-64 border-r bg-white hidden lg:flex flex-col shrink-0">
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-4">
@@ -156,7 +175,6 @@ const ScriptEditor = () => {
           </div>
         </aside>
 
-        {/* The Script Page (Editable) */}
         <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-gray-100" onMouseUp={handleMouseUp}>
           <div 
             ref={editorRef}
@@ -197,7 +215,6 @@ const ScriptEditor = () => {
           </div>
         </main>
 
-        {/* Comments Sidebar (Conditional) */}
         {showComments && (
           <aside className="w-80 border-l bg-white flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
             <div className="p-4 border-b flex items-center justify-between">
@@ -224,7 +241,6 @@ const ScriptEditor = () => {
           </aside>
         )}
 
-        {/* Toolbar Sidebar */}
         <aside className="w-14 border-l bg-white flex flex-col items-center py-4 gap-4 shrink-0">
           <Button variant="ghost" size="icon" className="h-10 w-10">
             <Type size={20} />
