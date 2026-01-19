@@ -35,6 +35,7 @@ import ProductionOverseer from "@/components/ProductionOverseer";
 
 const ScriptEditor = () => {
   const [showRightPanel, setShowRightPanel] = useState<'comments' | 'ai' | null>(null);
+  const [aiTab, setAiTab] = useState<string>("overseer");
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect | null }>({ text: '', rect: null });
   const editorRef = useRef<HTMLDivElement>(null);
@@ -50,6 +51,12 @@ const ScriptEditor = () => {
     } else {
       setSelection({ text: '', rect: null });
     }
+  };
+
+  const handleCharacterClick = (char: string) => {
+    setActiveCharChat(char);
+    setShowRightPanel('ai');
+    setAiTab('chat');
   };
 
   const handleAIAction = (action: 'enhance' | 'shorten' | 'expand') => {
@@ -88,7 +95,10 @@ const ScriptEditor = () => {
             variant={showRightPanel === 'ai' ? 'secondary' : 'ghost'} 
             size="sm" 
             className="gap-2 text-purple-600"
-            onClick={() => setShowRightPanel(showRightPanel === 'ai' ? null : 'ai')}
+            onClick={() => {
+              setShowRightPanel(showRightPanel === 'ai' ? null : 'ai');
+              setAiTab('overseer');
+            }}
           >
             <BrainCircuit size={16} />
             AI Overseer
@@ -173,12 +183,11 @@ const ScriptEditor = () => {
               {['KAI', 'SARA', 'VEO', 'DR. ARIS'].map(char => (
                 <button 
                   key={char} 
-                  onClick={() => {
-                    setActiveCharChat(char);
-                    setShowRightPanel('ai');
-                  }}
+                  onClick={() => handleCharacterClick(char)}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
-                    activeCharChat === char ? 'bg-purple-50 border-purple-200 text-purple-700' : 'hover:bg-muted border-transparent'
+                    activeCharChat === char && showRightPanel === 'ai' && aiTab === 'chat'
+                      ? 'bg-purple-50 border-purple-200 text-purple-700' 
+                      : 'hover:bg-muted border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -245,24 +254,31 @@ const ScriptEditor = () => {
             
             <div className="flex-1 overflow-hidden">
               {showRightPanel === 'ai' ? (
-                <Tabs defaultValue="overseer" className="h-full flex flex-col">
+                <Tabs value={aiTab} onValueChange={setAiTab} className="h-full flex flex-col">
                   <TabsList className="w-full justify-start rounded-none border-b bg-transparent h-10 px-4">
                     <TabsTrigger value="overseer" className="text-xs h-8">Overseer</TabsTrigger>
                     <TabsTrigger value="chat" className="text-xs h-8" disabled={!activeCharChat}>
                       Actor Chat
                     </TabsTrigger>
                   </TabsList>
-                  <ScrollArea className="flex-1 p-4">
-                    <TabsContent value="overseer" className="mt-0">
+                  <div className="flex-1 overflow-hidden">
+                    <TabsContent value="overseer" className="mt-0 h-full p-4 overflow-y-auto">
                       <ProductionOverseer />
                     </TabsContent>
-                    <TabsContent value="chat" className="mt-0 h-[500px]">
-                      {activeCharChat && <CharacterChat characterName={activeCharChat} />}
+                    <TabsContent value="chat" className="mt-0 h-full p-4">
+                      {activeCharChat ? (
+                        <CharacterChat characterName={activeCharChat} />
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground">
+                          <UserCircle2 size={48} className="mb-4 opacity-20" />
+                          <p className="text-sm font-medium">Select a character to start chatting</p>
+                        </div>
+                      )}
                     </TabsContent>
-                  </ScrollArea>
+                  </div>
                 </Tabs>
               ) : (
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4 overflow-y-auto h-full">
                   <div className="bg-muted/50 rounded-lg p-3 space-y-2">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
@@ -287,7 +303,10 @@ const ScriptEditor = () => {
             variant={showRightPanel === 'ai' ? 'secondary' : 'ghost'} 
             size="icon" 
             className="h-10 w-10 text-purple-600"
-            onClick={() => setShowRightPanel('ai')}
+            onClick={() => {
+              setShowRightPanel('ai');
+              setAiTab('overseer');
+            }}
           >
             <BrainCircuit size={20} />
           </Button>
