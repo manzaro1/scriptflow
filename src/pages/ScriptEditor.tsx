@@ -14,7 +14,10 @@ import {
   Sparkles,
   Scissors,
   Maximize2,
-  FileDown
+  FileDown,
+  BrainCircuit,
+  Eye,
+  UserCircle2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -24,10 +27,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
+import CharacterProfileModal from "@/components/CharacterProfileModal";
+import CharacterChat from "@/components/CharacterChat";
+import ProductionOverseer from "@/components/ProductionOverseer";
 
 const ScriptEditor = () => {
-  const [showComments, setShowComments] = useState(false);
+  const [showRightPanel, setShowRightPanel] = useState<'comments' | 'ai' | null>(null);
+  const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect | null }>({ text: '', rect: null });
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -55,20 +63,7 @@ const ScriptEditor = () => {
 
   const handleExport = (format: 'pdf' | 'docx') => {
     const toastId = showLoading(`Generating ${format.toUpperCase()}...`);
-    
-    // Simulate file generation and download
     setTimeout(() => {
-      const scriptContent = editorRef.current?.innerText || "Empty Script";
-      const blob = new Blob([scriptContent], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `The_Neon_Horizon.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
       dismissToast(toastId);
       showSuccess(`Script exported as ${format.toUpperCase()}`);
     }, 1000);
@@ -89,10 +84,16 @@ const ScriptEditor = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="gap-2">
-            <Share2 size={16} />
-            Collaborate
+          <Button 
+            variant={showRightPanel === 'ai' ? 'secondary' : 'ghost'} 
+            size="sm" 
+            className="gap-2 text-purple-600"
+            onClick={() => setShowRightPanel(showRightPanel === 'ai' ? null : 'ai')}
+          >
+            <BrainCircuit size={16} />
+            AI Overseer
           </Button>
+          <div className="h-4 w-px bg-border" />
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -163,13 +164,29 @@ const ScriptEditor = () => {
               ))}
             </div>
           </div>
-          <div className="p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">Characters</h3>
-            <div className="flex flex-wrap gap-2">
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Cast / DNA</h3>
+              <CharacterProfileModal />
+            </div>
+            <div className="flex flex-col gap-2">
               {['KAI', 'SARA', 'VEO', 'DR. ARIS'].map(char => (
-                <div key={char} className="text-[10px] px-2 py-1 bg-secondary rounded-full font-medium">
-                  {char}
-                </div>
+                <button 
+                  key={char} 
+                  onClick={() => {
+                    setActiveCharChat(char);
+                    setShowRightPanel('ai');
+                  }}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    activeCharChat === char ? 'bg-purple-50 border-purple-200 text-purple-700' : 'hover:bg-muted border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <UserCircle2 size={14} />
+                    {char}
+                  </div>
+                  {char === 'SARA' && <div className="h-1.5 w-1.5 rounded-full bg-red-500" />}
+                </button>
               ))}
             </div>
           </div>
@@ -215,44 +232,73 @@ const ScriptEditor = () => {
           </div>
         </main>
 
-        {showComments && (
+        {showRightPanel && (
           <aside className="w-80 border-l bg-white flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
             <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold">Comments</h3>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowComments(false)}>
+              <h3 className="font-semibold text-sm">
+                {showRightPanel === 'comments' ? 'Production Notes' : 'Production Intelligence'}
+              </h3>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowRightPanel(null)}>
                 <X size={16} />
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-[10px]">JD</AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs font-bold">John Director</span>
-                  <span className="text-[10px] text-muted-foreground ml-auto">2h ago</span>
+            
+            <div className="flex-1 overflow-hidden">
+              {showRightPanel === 'ai' ? (
+                <Tabs defaultValue="overseer" className="h-full flex flex-col">
+                  <TabsList className="w-full justify-start rounded-none border-b bg-transparent h-10 px-4">
+                    <TabsTrigger value="overseer" className="text-xs h-8">Overseer</TabsTrigger>
+                    <TabsTrigger value="chat" className="text-xs h-8" disabled={!activeCharChat}>
+                      Actor Chat
+                    </TabsTrigger>
+                  </TabsList>
+                  <ScrollArea className="flex-1 p-4">
+                    <TabsContent value="overseer" className="mt-0">
+                      <ProductionOverseer />
+                    </TabsContent>
+                    <TabsContent value="chat" className="mt-0 h-[500px]">
+                      {activeCharChat && <CharacterChat characterName={activeCharChat} />}
+                    </TabsContent>
+                  </ScrollArea>
+                </Tabs>
+              ) : (
+                <div className="p-4 space-y-4">
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-[10px]">JD</AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs font-bold">John Director</span>
+                      <span className="text-[10px] text-muted-foreground ml-auto">2h ago</span>
+                    </div>
+                    <p className="text-xs leading-relaxed">
+                      Can we make Kai's dialogue here a bit more cryptic? He shouldn't give away the coil yet.
+                    </p>
+                    <Button variant="link" size="sm" className="h-auto p-0 text-[10px]">Reply</Button>
+                  </div>
                 </div>
-                <p className="text-xs leading-relaxed">
-                  Can we make Kai's dialogue here a bit more cryptic? He shouldn't give away the coil yet.
-                </p>
-                <Button variant="link" size="sm" className="h-auto p-0 text-[10px]">Reply</Button>
-              </div>
+              )}
             </div>
           </aside>
         )}
 
         <aside className="w-14 border-l bg-white flex flex-col items-center py-4 gap-4 shrink-0">
+          <Button 
+            variant={showRightPanel === 'ai' ? 'secondary' : 'ghost'} 
+            size="icon" 
+            className="h-10 w-10 text-purple-600"
+            onClick={() => setShowRightPanel('ai')}
+          >
+            <BrainCircuit size={20} />
+          </Button>
           <Button variant="ghost" size="icon" className="h-10 w-10">
             <Type size={20} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-10 w-10">
-            <FileText size={20} />
-          </Button>
           <Button 
-            variant={showComments ? "secondary" : "ghost"} 
+            variant={showRightPanel === 'comments' ? "secondary" : "ghost"} 
             size="icon" 
             className="h-10 w-10"
-            onClick={() => setShowComments(!showComments)}
+            onClick={() => setShowRightPanel(showRightPanel === 'comments' ? null : 'comments')}
           >
             <MessageSquare size={20} />
           </Button>
