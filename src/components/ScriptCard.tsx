@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, FileText, MoreVertical } from 'lucide-react';
@@ -15,6 +16,8 @@ interface ScriptCardProps {
 }
 
 const ScriptCard = ({ title, author, status, lastModified, genre }: ScriptCardProps) => {
+  const navigate = useNavigate();
+  
   const statusColors = {
     'Draft': 'bg-yellow-100 text-yellow-800 border-yellow-200',
     'Final': 'bg-green-100 text-green-800 border-green-200',
@@ -22,14 +25,25 @@ const ScriptCard = ({ title, author, status, lastModified, genre }: ScriptCardPr
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer group">
+    <Card 
+      className="hover:shadow-md transition-shadow cursor-pointer group"
+      onClick={() => navigate('/editor')}
+    >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
             <CardTitle className="text-lg group-hover:text-primary transition-colors">{title}</CardTitle>
             <CardDescription>by {author}</CardDescription>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Menu action
+            }}
+          >
             <MoreVertical size={16} />
           </Button>
         </div>

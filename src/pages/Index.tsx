@@ -4,9 +4,11 @@ import React from 'react';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ScriptCard from "@/components/ScriptCard";
+import NewScriptModal from "@/components/NewScriptModal";
+import ProductionStats from "@/components/ProductionStats";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Filter } from 'lucide-react';
+import { Filter, Plus } from 'lucide-react';
 
 const Index = () => {
   const scripts = [
@@ -50,12 +52,11 @@ const Index = () => {
                   <Filter size={16} />
                   Filter
                 </Button>
-                <Button size="sm" className="gap-2">
-                  <Plus size={16} />
-                  Create New
-                </Button>
+                <NewScriptModal />
               </div>
             </header>
+
+            <ProductionStats />
 
             <Tabs defaultValue="all" className="w-full">
               <TabsList className="mb-6">
@@ -70,13 +71,14 @@ const Index = () => {
                   <ScriptCard key={index} {...script} />
                 ))}
                 
-                {/* Empty state / placeholder for adding more */}
-                <button className="border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-8 text-muted-foreground hover:text-primary hover:border-primary transition-all group min-h-[200px]">
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3 group-hover:bg-primary/10">
-                    <Plus className="group-hover:text-primary" />
-                  </div>
-                  <span className="font-medium text-sm">Add New Script</span>
-                </button>
+                <NewScriptModal>
+                  <button className="border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-8 text-muted-foreground hover:text-primary hover:border-primary transition-all group min-h-[200px]">
+                    <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3 group-hover:bg-primary/10">
+                      <Plus className="group-hover:text-primary" />
+                    </div>
+                    <span className="font-medium text-sm">Add New Script</span>
+                  </button>
+                </NewScriptModal>
               </div>
             </Tabs>
 

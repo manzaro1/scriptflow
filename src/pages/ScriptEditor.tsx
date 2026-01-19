@@ -1,11 +1,25 @@
 "use client";
 
-import React from 'react';
-import { ArrowLeft, Save, Share2, Download, MessageSquare, List, Type, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  ArrowLeft, 
+  Save, 
+  Share2, 
+  Download, 
+  MessageSquare, 
+  List, 
+  Type, 
+  FileText,
+  X,
+  User
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 const ScriptEditor = () => {
+  const [showComments, setShowComments] = useState(false);
+
   return (
     <div className="h-screen flex flex-col bg-[#F9F9F9]">
       {/* Editor Header */}
@@ -40,7 +54,7 @@ const ScriptEditor = () => {
       {/* Editor Main Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Outline Sidebar */}
-        <aside className="w-64 border-r bg-white hidden lg:flex flex-col">
+        <aside className="w-64 border-r bg-white hidden lg:flex flex-col shrink-0">
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Scene Navigator</h3>
@@ -79,7 +93,7 @@ const ScriptEditor = () => {
             </div>
 
             <div className="space-y-6">
-              <div>
+              <div className="relative group">
                 <p className="font-bold uppercase mb-4">EXT. SKYLINE - NIGHT</p>
                 <p>Rain hammers against the metallic skin of the city. Neon signs flicker in shades of bruised purple and electric cyan.</p>
               </div>
@@ -92,7 +106,7 @@ const ScriptEditor = () => {
 
               <p>Kai pulls a small, glowing COIL from his pocket. It pulses with a rhythmic, golden light.</p>
 
-              <div className="px-[15%] text-center">
+              <div className="px-[15%] text-center bg-yellow-50/50 rounded p-2 border border-transparent hover:border-yellow-200 transition-all">
                 <p className="uppercase font-bold mb-1">VEO (V.O.)</p>
                 <p>The deal changed the moment you stepped into Sector 4.</p>
               </div>
@@ -105,15 +119,47 @@ const ScriptEditor = () => {
           </div>
         </main>
 
+        {/* Comments Sidebar (Conditional) */}
+        {showComments && (
+          <aside className="w-80 border-l bg-white flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-semibold">Comments</h3>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowComments(false)}>
+                <X size={16} />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-[10px]">JD</AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs font-bold">John Director</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">2h ago</span>
+                </div>
+                <p className="text-xs leading-relaxed">
+                  Can we make Kai's dialogue here a bit more cryptic? He shouldn't give away the coil yet.
+                </p>
+                <Button variant="link" size="sm" className="h-auto p-0 text-[10px]">Reply</Button>
+              </div>
+            </div>
+          </aside>
+        )}
+
         {/* Toolbar Sidebar */}
-        <aside className="w-14 border-l bg-white flex flex-col items-center py-4 gap-4">
+        <aside className="w-14 border-l bg-white flex flex-col items-center py-4 gap-4 shrink-0">
           <Button variant="ghost" size="icon" className="h-10 w-10">
             <Type size={20} />
           </Button>
           <Button variant="ghost" size="icon" className="h-10 w-10">
             <FileText size={20} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-10 w-10">
+          <Button 
+            variant={showComments ? "secondary" : "ghost"} 
+            size="icon" 
+            className="h-10 w-10"
+            onClick={() => setShowComments(!showComments)}
+          >
             <MessageSquare size={20} />
           </Button>
           <div className="mt-auto">
