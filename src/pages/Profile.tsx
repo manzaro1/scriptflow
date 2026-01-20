@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,57 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CreditCard, User, Shield, Bell, Zap, Download, CreditCard as CardIcon } from 'lucide-react';
+import { 
+  CreditCard, 
+  User, 
+  Shield, 
+  Bell, 
+  Zap, 
+  Download, 
+  CreditCard as CardIcon,
+  Users,
+  UserPlus,
+  Mail,
+  MoreVertical,
+  Trash2,
+  ShieldCheck
+} from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { showSuccess } from "@/utils/toast";
 
 const Profile = () => {
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [teamMembers, setTeamMembers] = useState([
+    { id: 1, name: 'Alex Rivers', email: 'alex@example.com', role: 'Owner', status: 'Active', avatar: 'AR' },
+    { id: 2, name: 'John Director', email: 'john@production.com', role: 'Admin', status: 'Active', avatar: 'JD' },
+    { id: 3, name: 'Sarah Editor', email: 'sarah@cuts.com', role: 'Editor', status: 'Active', avatar: 'SE' },
+    { id: 4, name: 'Mike Intern', email: 'mike@intern.com', role: 'Viewer', status: 'Pending', avatar: 'MI' },
+  ]);
+
+  const handleInvite = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail) return;
+    showSuccess(`Invitation sent to ${inviteEmail}`);
+    setInviteEmail('');
+  };
+
+  const handleRemoveMember = (id: number) => {
+    setTeamMembers(teamMembers.filter(m => m.id !== id));
+    showSuccess("Member removed from team");
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
@@ -21,7 +69,7 @@ const Profile = () => {
           <div className="max-w-4xl mx-auto space-y-8">
             <header>
               <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-              <p className="text-muted-foreground mt-1">Manage your account settings and set e-mail preferences.</p>
+              <p className="text-muted-foreground mt-1">Manage your account settings, billing, and team collaboration.</p>
             </header>
 
             <Tabs defaultValue="account" className="space-y-6">
@@ -30,6 +78,10 @@ const Profile = () => {
                   <User size={16} />
                   Account
                 </TabsTrigger>
+                <TabsTrigger value="teams" className="gap-2">
+                  <Users size={16} />
+                  Teams
+                </TabsTrigger>
                 <TabsTrigger value="billing" className="gap-2">
                   <CreditCard size={16} />
                   Billing
@@ -37,10 +89,6 @@ const Profile = () => {
                 <TabsTrigger value="security" className="gap-2">
                   <Shield size={16} />
                   Security
-                </TabsTrigger>
-                <TabsTrigger value="notifications" className="gap-2">
-                  <Bell size={16} />
-                  Notifications
                 </TabsTrigger>
               </TabsList>
 
@@ -70,27 +118,127 @@ const Profile = () => {
                         <Label htmlFor="email">Email Address</Label>
                         <Input id="email" defaultValue="alex@example.com" />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="role">Industry Role</Label>
-                        <Input id="role" defaultValue="Screenwriter / Director" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="location">Location</Label>
-                        <Input id="location" defaultValue="Los Angeles, CA" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bio">Bio</Label>
-                      <textarea 
-                        id="bio" 
-                        className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        placeholder="Tell us about yourself..."
-                      />
                     </div>
                   </CardContent>
                   <CardFooter className="border-t px-6 py-4">
                     <Button>Save Changes</Button>
                   </CardFooter>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="teams" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Invite Collaborators</CardTitle>
+                    <CardDescription>Invite your production team to collaborate on your scripts.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex-1 space-y-2">
+                        <Label htmlFor="team-email">Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            id="team-email" 
+                            className="pl-10" 
+                            placeholder="colleague@production.com" 
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Role</Label>
+                        <Select defaultValue="editor">
+                          <SelectTrigger className="w-full sm:w-[140px]">
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="editor">Editor</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-end">
+                        <Button type="submit" className="w-full sm:w-auto gap-2">
+                          <UserPlus size={16} />
+                          Send Invite
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Active Team Members</CardTitle>
+                    <CardDescription>Manage roles and permissions for your current team.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-md border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 border-b">
+                          <tr>
+                            <th className="text-left p-3 font-medium">Member</th>
+                            <th className="text-left p-3 font-medium hidden md:table-cell">Role</th>
+                            <th className="text-left p-3 font-medium hidden sm:table-cell">Status</th>
+                            <th className="text-right p-3 font-medium">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {teamMembers.map((member) => (
+                            <tr key={member.id} className="group">
+                              <td className="p-3">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="text-[10px]">{member.avatar}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{member.name}</span>
+                                    <span className="text-xs text-muted-foreground">{member.email}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3 hidden md:table-cell">
+                                <div className="flex items-center gap-1.5">
+                                  {member.role === 'Owner' || member.role === 'Admin' ? (
+                                    <ShieldCheck size={14} className="text-primary" />
+                                  ) : null}
+                                  <span>{member.role}</span>
+                                </div>
+                              </td>
+                              <td className="p-3 hidden sm:table-cell">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                  member.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {member.status}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                {member.role !== 'Owner' && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MoreVertical size={14} />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem>Change Role</DropdownMenuItem>
+                                      <DropdownMenuItem className="text-destructive" onClick={() => handleRemoveMember(member.id)}>
+                                        <Trash2 size={14} className="mr-2" />
+                                        Remove Member
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
                 </Card>
               </TabsContent>
 
@@ -117,98 +265,13 @@ const Profile = () => {
                           <p className="text-xs text-muted-foreground">per year</p>
                         </div>
                       </div>
-
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-semibold">Payment Method</h4>
-                        <div className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-muted rounded">
-                              <CardIcon size={20} />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">Visa ending in 4242</p>
-                              <p className="text-xs text-muted-foreground">Expiry 12/26</p>
-                            </div>
-                          </div>
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </div>
-                      </div>
                     </CardContent>
                     <CardFooter className="border-t px-6 py-4 flex justify-between">
                       <Button variant="outline" size="sm">Cancel Subscription</Button>
                       <Button size="sm">Upgrade Plan</Button>
                     </CardFooter>
                   </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Usage Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Scripts</span>
-                          <span className="font-medium">12 / 20</span>
-                        </div>
-                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-600" style={{ width: '60%' }} />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Storage</span>
-                          <span className="font-medium">256MB / 2GB</span>
-                        </div>
-                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-purple-600" style={{ width: '15%' }} />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
                 </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Billing History</CardTitle>
-                    <CardDescription>View and download your previous invoices.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50 border-b">
-                          <tr>
-                            <th className="text-left p-3 font-medium">Date</th>
-                            <th className="text-left p-3 font-medium">Amount</th>
-                            <th className="text-left p-3 font-medium">Status</th>
-                            <th className="text-right p-3 font-medium">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {[
-                            { date: 'Sep 12, 2023', amount: '$120.00', status: 'Paid' },
-                            { date: 'Sep 12, 2022', amount: '$120.00', status: 'Paid' },
-                            { date: 'Sep 12, 2021', amount: '$120.00', status: 'Paid' },
-                          ].map((invoice, i) => (
-                            <tr key={i}>
-                              <td className="p-3">{invoice.date}</td>
-                              <td className="p-3">{invoice.amount}</td>
-                              <td className="p-3">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                  {invoice.status}
-                                </span>
-                              </td>
-                              <td className="p-3 text-right">
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <Download size={14} />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
               </TabsContent>
               
               <TabsContent value="security">
@@ -217,20 +280,14 @@ const Profile = () => {
                     <CardTitle>Security Settings</CardTitle>
                     <CardDescription>Manage your password and security preferences.</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="current">Current Password</Label>
-                        <Input id="current" type="password" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="new">New Password</Label>
-                        <Input id="new" type="password" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="confirm">Confirm New Password</Label>
-                        <Input id="confirm" type="password" />
-                      </div>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="current">Current Password</Label>
+                      <Input id="current" type="password" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="new">New Password</Label>
+                      <Input id="new" type="password" />
                     </div>
                   </CardContent>
                   <CardFooter className="border-t px-6 py-4">
