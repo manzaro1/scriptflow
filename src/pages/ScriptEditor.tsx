@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Save, 
@@ -8,14 +8,12 @@ import {
   MessageSquare, 
   List, 
   Type, 
-  FileText,
   X,
   Sparkles,
   Scissors,
   Maximize2,
   FileDown,
   BrainCircuit,
-  Eye,
   UserCircle2,
   Share2
 } from 'lucide-react';
@@ -34,11 +32,14 @@ import CharacterChat from "@/components/CharacterChat";
 import ProductionOverseer from "@/components/ProductionOverseer";
 import ShareScriptModal from "@/components/ShareScriptModal";
 
+type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
+
 const ScriptEditor = () => {
   const [showRightPanel, setShowRightPanel] = useState<'comments' | 'ai' | null>(null);
   const [aiTab, setAiTab] = useState<string>("overseer");
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect | null }>({ text: '', rect: null });
+  const [currentType, setCurrentType] = useState<ElementType>('action');
   const editorRef = useRef<HTMLDivElement>(null);
 
   const handleMouseUp = () => {
@@ -51,6 +52,28 @@ const ScriptEditor = () => {
       });
     } else {
       setSelection({ text: '', rect: null });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const types: ElementType[] = ['action', 'character', 'parenthetical', 'dialogue', 'slugline'];
+      const currentIndex = types.indexOf(currentType);
+      const nextIndex = (currentIndex + 1) % types.length;
+      setCurrentType(types[nextIndex]);
+      showSuccess(`Switched to ${types[nextIndex].toUpperCase()}`);
+    }
+
+    if (e.key === 'Enter') {
+      // Intelligent transitions
+      if (currentType === 'character') {
+        setTimeout(() => setCurrentType('dialogue'), 0);
+      } else if (currentType === 'dialogue') {
+        setTimeout(() => setCurrentType('action'), 0);
+      } else if (currentType === 'slugline') {
+        setTimeout(() => setCurrentType('action'), 0);
+      }
     }
   };
 
@@ -77,6 +100,16 @@ const ScriptEditor = () => {
     }, 1000);
   };
 
+  const getTypeStyles = (type: ElementType) => {
+    switch (type) {
+      case 'character': return "text-center uppercase font-bold w-[50%] mx-auto mb-1 mt-4";
+      case 'dialogue': return "text-center w-[70%] mx-auto mb-4";
+      case 'parenthetical': return "text-center w-[40%] mx-auto italic text-sm mb-1";
+      case 'slugline': return "uppercase font-bold mb-4 mt-8";
+      default: return "mb-4"; // Action
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-[#F9F9F9]">
       <header className="h-14 border-b bg-white flex items-center px-4 justify-between shrink-0 z-10">
@@ -87,11 +120,28 @@ const ScriptEditor = () => {
           <div className="h-4 w-px bg-border" />
           <div className="flex flex-col">
             <span className="text-sm font-semibold">The Neon Horizon</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Draft 3 - Rev 1</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Draft 3</span>
+              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] font-bold uppercase">{currentType} Mode</span>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-1 bg-muted/50 p-1 rounded-lg border mr-4">
+            {(['slugline', 'action', 'character', 'parenthetical', 'dialogue'] as ElementType[]).map((t) => (
+              <Button 
+                key={t}
+                variant={currentType === t ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 text-[10px] px-2 uppercase font-bold"
+                onClick={() => setCurrentType(t)}
+              >
+                {t === 'slugline' ? 'Slug' : t.substring(0, 4)}
+              </Button>
+            ))}
+          </div>
+
           <Button 
             variant={showRightPanel === 'ai' ? 'secondary' : 'ghost'} 
             size="sm" 
@@ -104,7 +154,6 @@ const ScriptEditor = () => {
             <BrainCircuit size={16} />
             AI Overseer
           </Button>
-          <div className="h-4 w-px bg-border" />
           
           <ShareScriptModal>
             <Button variant="outline" size="sm" className="gap-2">
@@ -213,6 +262,7 @@ const ScriptEditor = () => {
           <div 
             ref={editorRef}
             contentEditable
+            onKeyDown={handleKeyDown}
             suppressContentEditableWarning
             className="w-[850px] min-h-[1100px] bg-white shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight outline-none cursor-text selection:bg-primary/20"
           >
@@ -222,28 +272,28 @@ const ScriptEditor = () => {
               <p className="mt-1">Alex Rivers</p>
             </div>
 
-            <div className="space-y-6">
-              <div>
-                <p className="font-bold uppercase mb-4">EXT. SKYLINE - NIGHT</p>
-                <p>Rain hammers against the metallic skin of the city. Neon signs flicker in shades of bruised purple and electric cyan.</p>
+            <div className="space-y-1">
+              <div className={getTypeStyles('slugline')}>EXT. SKYLINE - NIGHT</div>
+              <div className={getTypeStyles('action')}>
+                Rain hammers against the metallic skin of the city. Neon signs flicker in shades of bruised purple and electric cyan.
               </div>
 
-              <div className="px-[15%] text-center">
-                <p className="uppercase font-bold mb-1">KAI</p>
-                <p>(to himself)</p>
-                <p>This wasn't part of the deal.</p>
+              <div className={getTypeStyles('character')}>KAI</div>
+              <div className={getTypeStyles('parenthetical')}>(to himself)</div>
+              <div className={getTypeStyles('dialogue')}>This wasn't part of the deal.</div>
+
+              <div className={getTypeStyles('action')}>
+                Kai pulls a small, glowing COIL from his pocket. It pulses with a rhythmic, golden light.
               </div>
 
-              <p>Kai pulls a small, glowing COIL from his pocket. It pulses with a rhythmic, golden light.</p>
-
-              <div className="px-[15%] text-center">
-                <p className="uppercase font-bold mb-1">VEO (V.O.)</p>
-                <p>The deal changed the moment you stepped into Sector 4.</p>
+              <div className={getTypeStyles('character')}>VEO (V.O.)</div>
+              <div className={getTypeStyles('dialogue')}>
+                The deal changed the moment you stepped into Sector 4.
               </div>
 
-              <div>
-                <p className="font-bold uppercase mt-8 mb-4">INT. APARTMENT - CONTINUOUS</p>
-                <p>Kai kicks the door open. The room is dark, save for the blue light of a dozen floating holographic screens.</p>
+              <div className={getTypeStyles(currentType)}>
+                {/* User starts typing here with dynamic style applied */}
+                Type here... Use TAB to change element type.
               </div>
             </div>
           </div>
@@ -319,14 +369,6 @@ const ScriptEditor = () => {
             <BrainCircuit size={20} />
           </Button>
           <Button variant="ghost" size="icon" className="h-10 w-10">
-            <Type size={20} />
-          </Button>
-          <Button 
-            variant={showRightPanel === 'comments' ? "secondary" : "ghost"} 
-            size="icon" 
-            className="h-10 w-10"
-            onClick={() => setShowRightPanel(showRightPanel === 'comments' ? null : 'comments')}
-          >
             <MessageSquare size={20} />
           </Button>
           <div className="mt-auto">
