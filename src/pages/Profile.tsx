@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CreditCard, User, Shield, Bell, Zap, Download, CreditCard as CardIcon } from 'lucide-react';
+import { CreditCard, User, Shield, Bell, Zap, Download, CreditCard as CardIcon, Users } from 'lucide-react';
+import TeamManagement from "@/components/TeamManagement";
 
 const Profile = () => {
   return (
@@ -29,6 +30,10 @@ const Profile = () => {
                 <TabsTrigger value="account" className="gap-2">
                   <User size={16} />
                   Account
+                </TabsTrigger>
+                <TabsTrigger value="team" className="gap-2">
+                  <Users size={16} />
+                  Team
                 </TabsTrigger>
                 <TabsTrigger value="billing" className="gap-2">
                   <CreditCard size={16} />
@@ -92,6 +97,10 @@ const Profile = () => {
                     <Button>Save Changes</Button>
                   </CardFooter>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="team">
+                <TeamManagement />
               </TabsContent>
 
               <TabsContent value="billing" className="space-y-6">
