@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import ScriptCard from "@/components/ScriptCard";
 import NewScriptModal from "@/components/NewScriptModal";
 import ProductionStats from "@/components/ProductionStats";
+import OnboardingTour from "@/components/OnboardingTour";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Filter, Plus, SearchX } from 'lucide-react';
@@ -78,12 +79,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <OnboardingTour />
       <Navbar />
       <div className="flex flex-1">
         <Sidebar />
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           <div className="max-w-6xl mx-auto space-y-8">
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 tour-scripts-header">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Script Library</h1>
                 <p className="text-muted-foreground mt-1">Manage and edit your screenplays in one place.</p>
@@ -109,13 +111,17 @@ const Index = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 
-                <NewScriptModal />
+                <div className="tour-new-script">
+                  <NewScriptModal />
+                </div>
               </div>
             </header>
 
-            <ProductionStats />
+            <div className="tour-stats">
+              <ProductionStats />
+            </div>
 
-            <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
+            <Tabs defaultValue="all" className="w-full tour-tabs" onValueChange={setActiveTab}>
               <TabsList className="mb-6">
                 <TabsTrigger value="all">All Scripts</TabsTrigger>
                 <TabsTrigger value="recent">Recent</TabsTrigger>

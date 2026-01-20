@@ -44,39 +44,43 @@ const Navbar = () => {
             <Bell size={20} />
           </Button>
           
-          <NewScriptModal>
-            <Button variant="outline" className="hidden sm:flex items-center gap-2">
-              <Plus size={18} />
-              New Script
-            </Button>
-          </NewScriptModal>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
-                <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center border overflow-hidden">
-                  <User size={18} className="text-secondary-foreground" />
-                </div>
+          <div className="tour-new-script">
+            <NewScriptModal>
+              <Button variant="outline" className="hidden sm:flex items-center gap-2">
+                <Plus size={18} />
+                New Script
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
-                Profile & Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
-                Team Management
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </NewScriptModal>
+          </div>
+          
+          <div className="tour-profile">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
+                  <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center border overflow-hidden">
+                    <User size={18} className="text-secondary-foreground" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  Profile & Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  Billing
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  Team Management
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive">
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </nav>
