@@ -13,16 +13,14 @@ import {
   CreditCard, 
   User, 
   Shield, 
-  Bell, 
-  Zap, 
-  Download, 
-  CreditCard as CardIcon,
   Users,
   UserPlus,
   Mail,
   MoreVertical,
   Trash2,
-  ShieldCheck
+  ShieldCheck,
+  UserMinus,
+  Zap
 } from 'lucide-react';
 import {
   Select,
@@ -41,6 +39,7 @@ import { showSuccess } from "@/utils/toast";
 
 const Profile = () => {
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('editor');
   const [teamMembers, setTeamMembers] = useState([
     { id: 1, name: 'Alex Rivers', email: 'alex@example.com', role: 'Owner', status: 'Active', avatar: 'AR' },
     { id: 2, name: 'John Director', email: 'john@production.com', role: 'Admin', status: 'Active', avatar: 'JD' },
@@ -51,13 +50,29 @@ const Profile = () => {
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
+
+    const newMember = {
+      id: Date.now(),
+      name: inviteEmail.split('@')[0], // Mock name from email
+      email: inviteEmail,
+      role: inviteRole.charAt(0).toUpperCase() + inviteRole.slice(1),
+      status: 'Pending',
+      avatar: inviteEmail.substring(0, 2).toUpperCase()
+    };
+
+    setTeamMembers(prev => [...prev, newMember]);
     showSuccess(`Invitation sent to ${inviteEmail}`);
     setInviteEmail('');
   };
 
-  const handleRemoveMember = (id: number) => {
-    setTeamMembers(teamMembers.filter(m => m.id !== id));
-    showSuccess("Member removed from team");
+  const handleRemoveMember = (id: number, name: string) => {
+    setTeamMembers(prev => prev.filter(m => m.id !== id));
+    showSuccess(`${name} has been removed from the team.`);
+  };
+
+  const handleRevokeInvite = (id: number, email: string) => {
+    setTeamMembers(prev => prev.filter(m => m.id !== id));
+    showSuccess(`Invitation for ${email} has been revoked.`);
   };
 
   return (
@@ -72,7 +87,7 @@ const Profile = () => {
               <p className="text-muted-foreground mt-1">Manage your account settings, billing, and team collaboration.</p>
             </header>
 
-            <Tabs defaultValue="account" className="space-y-6">
+            <Tabs defaultValue="teams" className="space-y-6">
               <TabsList className="bg-muted/50 p-1">
                 <TabsTrigger value="account" className="gap-2">
                   <User size={16} />
@@ -149,7 +164,7 @@ const Profile = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>Role</Label>
-                        <Select defaultValue="editor">
+                        <Select value={inviteRole} onValueChange={setInviteRole}>
                           <SelectTrigger className="w-full sm:w-[140px]">
                             <SelectValue placeholder="Select role" />
                           </SelectTrigger>
@@ -176,7 +191,7 @@ const Profile = () => {
                     <CardDescription>Manage roles and permissions for your current team.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="rounded-md border">
+                    <div className="rounded-md border overflow-hidden">
                       <table className="w-full text-sm">
                         <thead className="bg-muted/50 border-b">
                           <tr>
@@ -188,11 +203,11 @@ const Profile = () => {
                         </thead>
                         <tbody className="divide-y">
                           {teamMembers.map((member) => (
-                            <tr key={member.id} className="group">
+                            <tr key={member.id} className="group hover:bg-muted/20 transition-colors">
                               <td className="p-3">
                                 <div className="flex items-center gap-3">
                                   <Avatar className="h-8 w-8">
-                                    <AvatarFallback className="text-[10px]">{member.avatar}</AvatarFallback>
+                                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{member.avatar}</AvatarFallback>
                                   </Avatar>
                                   <div className="flex flex-col">
                                     <span className="font-medium">{member.name}</span>
@@ -202,9 +217,9 @@ const Profile = () => {
                               </td>
                               <td className="p-3 hidden md:table-cell">
                                 <div className="flex items-center gap-1.5">
-                                  {member.role === 'Owner' || member.role === 'Admin' ? (
+                                  {(member.role === 'Owner' || member.role === 'Admin') && (
                                     <ShieldCheck size={14} className="text-primary" />
-                                  ) : null}
+                                  )}
                                   <span>{member.role}</span>
                                 </div>
                               </td>
@@ -216,21 +231,43 @@ const Profile = () => {
                                 </span>
                               </td>
                               <td className="p-3 text-right">
-                                {member.role !== 'Owner' && (
+                                {member.role !== 'Owner' ? (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-8 w-8">
                                         <MoreVertical size={14} />
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem>Change Role</DropdownMenuItem>
-                                      <DropdownMenuItem className="text-destructive" onClick={() => handleRemoveMember(member.id)}>
-                                        <Trash2 size={14} className="mr-2" />
-                                        Remove Member
-                                      </DropdownMenuItem>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                      {member.status === 'Pending' ? (
+                                        <>
+                                          <DropdownMenuItem onClick={() => showSuccess("Invite resent!")}>
+                                            Resend Invitation
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem 
+                                            className="text-destructive focus:text-destructive" 
+                                            onClick={() => handleRevokeInvite(member.id, member.email)}
+                                          >
+                                            <UserMinus size={14} className="mr-2" />
+                                            Revoke Invitation
+                                          </DropdownMenuItem>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <DropdownMenuItem>Change Permissions</DropdownMenuItem>
+                                          <DropdownMenuItem 
+                                            className="text-destructive focus:text-destructive" 
+                                            onClick={() => handleRemoveMember(member.id, member.name)}
+                                          >
+                                            <Trash2 size={14} className="mr-2" />
+                                            Remove from Team
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
                                     </DropdownMenuContent>
                                   </DropdownMenu>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground px-2 uppercase font-bold">Admin</span>
                                 )}
                               </td>
                             </tr>
@@ -243,35 +280,33 @@ const Profile = () => {
               </TabsContent>
 
               <TabsContent value="billing" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="md:col-span-2">
-                    <CardHeader>
-                      <CardTitle>Current Plan</CardTitle>
-                      <CardDescription>You are currently on the Pro Annual plan.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/20">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary text-primary-foreground rounded-full">
-                            <Zap size={20} />
-                          </div>
-                          <div>
-                            <p className="font-bold text-lg">Pro Plan</p>
-                            <p className="text-sm text-muted-foreground">Next billing date: Oct 12, 2024</p>
-                          </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Current Plan</CardTitle>
+                    <CardDescription>You are currently on the Pro Annual plan.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/20">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary text-primary-foreground rounded-full">
+                          <Zap size={20} />
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold">$120</p>
-                          <p className="text-xs text-muted-foreground">per year</p>
+                        <div>
+                          <p className="font-bold text-lg">Pro Plan</p>
+                          <p className="text-sm text-muted-foreground">Next billing date: Oct 12, 2024</p>
                         </div>
                       </div>
-                    </CardContent>
-                    <CardFooter className="border-t px-6 py-4 flex justify-between">
-                      <Button variant="outline" size="sm">Cancel Subscription</Button>
-                      <Button size="sm">Upgrade Plan</Button>
-                    </CardFooter>
-                  </Card>
-                </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold">$120</p>
+                        <p className="text-xs text-muted-foreground">per year</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="border-t px-6 py-4 flex justify-between">
+                    <Button variant="outline" size="sm">Cancel Subscription</Button>
+                    <Button size="sm">Upgrade Plan</Button>
+                  </CardFooter>
+                </Card>
               </TabsContent>
               
               <TabsContent value="security">
