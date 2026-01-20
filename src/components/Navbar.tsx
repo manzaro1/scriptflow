@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Film, Search, Bell, User, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import NewScriptModal from "./NewScriptModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,10 +43,13 @@ const Navbar = () => {
           <Button variant="ghost" size="icon">
             <Bell size={20} />
           </Button>
-          <Button variant="outline" className="hidden sm:flex items-center gap-2">
-            <Plus size={18} />
-            New Script
-          </Button>
+          
+          <NewScriptModal>
+            <Button variant="outline" className="hidden sm:flex items-center gap-2">
+              <Plus size={18} />
+              New Script
+            </Button>
+          </NewScriptModal>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -64,7 +68,7 @@ const Navbar = () => {
               <DropdownMenuItem onClick={() => navigate('/profile')}>
                 Billing
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/profile')}>
                 Team Management
               </DropdownMenuItem>
               <DropdownMenuSeparator />
