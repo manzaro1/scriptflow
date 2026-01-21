@@ -1,25 +1,20 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Save, 
   Download, 
-  MessageSquare, 
-  List, 
   X,
   Sparkles,
-  Scissors,
-  Maximize2,
   FileDown,
   BrainCircuit,
   UserCircle2,
   Share2,
   Info,
-  Trash2
+  Layout
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +28,7 @@ import CharacterProfileModal from "@/components/CharacterProfileModal";
 import CharacterChat from "@/components/CharacterChat";
 import ProductionOverseer from "@/components/ProductionOverseer";
 import ShareScriptModal from "@/components/ShareScriptModal";
+import StoryboardGenerator from "@/components/StoryboardGenerator";
 import { cn } from "@/lib/utils";
 
 type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
@@ -47,7 +43,7 @@ const ScriptEditor = () => {
   const [showRightPanel, setShowRightPanel] = useState<'comments' | 'ai' | null>(null);
   const [aiTab, setAiTab] = useState<string>("overseer");
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
-  const [selection, setSelection] = useState<{ text: string; rect: DOMRect | null }>({ text: '', rect: null });
+  const [isStoryboardOpen, setIsStoryboardOpen] = useState(false);
   
   // Block-based state management
   const [blocks, setBlocks] = useState<ScriptBlock[]>([
@@ -62,13 +58,11 @@ const ScriptEditor = () => {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Focus management
   useEffect(() => {
     if (focusedBlockId && blockRefs.current[focusedBlockId]) {
       const element = blockRefs.current[focusedBlockId];
       element?.focus();
       
-      // Place cursor at the end
       const range = document.createRange();
       const sel = window.getSelection();
       if (element?.childNodes.length) {
@@ -83,7 +77,6 @@ const ScriptEditor = () => {
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     const block = blocks[index];
 
-    // 1. Tab Key: Cycle Mode
     if (e.key === 'Tab') {
       e.preventDefault();
       const types: ElementType[] = ['action', 'character', 'parenthetical', 'dialogue', 'slugline'];
@@ -94,7 +87,6 @@ const ScriptEditor = () => {
       return;
     }
 
-    // 2. Enter Key: Predictive Transition
     if (e.key === 'Enter') {
       e.preventDefault();
       let nextType: ElementType = 'action';
@@ -111,7 +103,6 @@ const ScriptEditor = () => {
       setFocusedBlockId(newId);
     }
 
-    // 3. Backspace: Delete empty block
     if (e.key === 'Backspace' && block.content === '' && blocks.length > 1) {
       e.preventDefault();
       const prevBlockId = blocks[index - 1]?.id;
@@ -126,7 +117,6 @@ const ScriptEditor = () => {
     const newBlocks = [...blocks];
     let type = newBlocks[index].type;
 
-    // Pattern Recognition: INT./EXT.
     const upperContent = content.toUpperCase();
     if (upperContent.startsWith('INT.') || upperContent.startsWith('EXT.')) {
       type = 'slugline';
@@ -184,9 +174,19 @@ const ScriptEditor = () => {
 
         <div className="flex items-center gap-2">
           <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 h-8"
+            onClick={() => setIsStoryboardOpen(true)}
+          >
+            <Sparkles size={16} />
+            <span className="hidden sm:inline">AI Storyboard</span>
+          </Button>
+
+          <Button 
             variant={showRightPanel === 'ai' ? 'secondary' : 'ghost'} 
             size="sm" 
-            className="gap-2 text-purple-600 h-8"
+            className="gap-2 h-8"
             onClick={() => {
               setShowRightPanel(showRightPanel === 'ai' ? null : 'ai');
               setAiTab('overseer');
@@ -230,6 +230,8 @@ const ScriptEditor = () => {
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
+        <StoryboardGenerator isOpen={isStoryboardOpen} onOpenChange={setIsStoryboardOpen} />
+
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white/80 backdrop-blur border px-3 py-1.5 rounded-full shadow-lg text-[10px] text-muted-foreground font-medium">
           <Info size={12} className="text-primary" />
           TAB to cycle • ENTER for smart transition • BACKSPACE to delete empty
