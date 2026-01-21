@@ -44,6 +44,7 @@ const ScriptEditor = () => {
   const [aiTab, setAiTab] = useState<string>("overseer");
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [isStoryboardOpen, setIsStoryboardOpen] = useState(false);
+  const scriptTitle = "The Neon Horizon";
   
   // Block-based state management
   const [blocks, setBlocks] = useState<ScriptBlock[]>([
@@ -160,7 +161,7 @@ const ScriptEditor = () => {
           </Button>
           <div className="h-4 w-px bg-border" />
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">The Neon Horizon</span>
+            <span className="text-sm font-semibold">{scriptTitle}</span>
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Draft 3</span>
               {focusedBlockId && (
@@ -230,7 +231,12 @@ const ScriptEditor = () => {
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <StoryboardGenerator isOpen={isStoryboardOpen} onOpenChange={setIsStoryboardOpen} />
+        <StoryboardGenerator 
+          isOpen={isStoryboardOpen} 
+          onOpenChange={setIsStoryboardOpen} 
+          scriptBlocks={blocks}
+          scriptTitle={scriptTitle}
+        />
 
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white/80 backdrop-blur border px-3 py-1.5 rounded-full shadow-lg text-[10px] text-muted-foreground font-medium">
           <Info size={12} className="text-primary" />
@@ -282,7 +288,7 @@ const ScriptEditor = () => {
         <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-gray-100">
           <div className="w-[850px] min-h-[1100px] bg-white shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight cursor-text">
             <div className="text-center mb-12 uppercase">
-              <h1 className="text-2xl font-bold">THE NEON HORIZON</h1>
+              <h1 className="text-2xl font-bold">{scriptTitle.toUpperCase()}</h1>
               <p className="mt-2 text-sm">Written by</p>
               <p className="mt-1">Alex Rivers</p>
             </div>
