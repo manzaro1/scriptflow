@@ -306,7 +306,7 @@ const Landing = () => {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 pt-12 mt-12 border-t text-center text-xs text-muted-foreground">
-          © 2024 ScriptFlow AI. All rights reserved. Made for visionaries.
+          © 2026 ScriptFlow AI. All rights reserved. Made for visionaries.
         </div>
       </footer>
     </div>
