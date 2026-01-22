@@ -10,7 +10,8 @@ import {
   Star, 
   Clock, 
   Archive,
-  FolderOpen
+  FolderOpen,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const Sidebar = () => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: FileText, label: 'My Scripts', path: '/' },
+    { icon: ClipboardList, label: 'Call Sheets', path: '/call-sheet' },
     { icon: Star, label: 'Favorites', path: '/' },
     { icon: Users, label: 'Collaborations', path: '/profile' },
     { icon: FolderOpen, label: 'Projects', path: '/' },
@@ -38,7 +40,7 @@ const Sidebar = () => {
             onClick={() => navigate(item.path)}
             className={cn(
               "flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm transition-colors",
-              isActive(item.path) && item.label === 'Dashboard'
+              isActive(item.path)
                 ? "bg-primary text-primary-foreground font-medium" 
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
