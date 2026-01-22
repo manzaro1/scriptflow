@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import ScriptEditor from "./pages/ScriptEditor";
 import Profile from "./pages/Profile";
 import CallSheet from "./pages/CallSheet";
+import SceneBreakdown from "./pages/SceneBreakdown";
 import AboutUs from "./pages/AboutUs";
 import Careers from "./pages/Careers";
 import TermsOfService from "./pages/TermsOfService";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/editor" element={<AuthGuard><ScriptEditor /></AuthGuard>} />
             <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
             <Route path="/call-sheet" element={<AuthGuard><CallSheet /></AuthGuard>} />
+            <Route path="/breakdown" element={<AuthGuard><SceneBreakdown /></AuthGuard>} />
             
             <Route path="/about-us" element={<AboutUs />} />
             <Route path="/careers" element={<Careers />} />

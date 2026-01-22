@@ -14,7 +14,8 @@ import {
   Share2,
   ExternalLink,
   Edit2,
-  ClipboardList
+  ClipboardList,
+  FileSearch
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +63,11 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
     navigate(`/call-sheet?script=${id}`);
   };
 
+  const navigateToBreakdown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/breakdown?script=${id}`);
+  };
+
   return (
     <>
       <Card 
@@ -89,6 +95,10 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
                 <DropdownMenuItem onClick={() => navigate('/editor')}>
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Open Editor
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={navigateToBreakdown}>
+                  <FileSearch className="mr-2 h-4 w-4" />
+                  Scene Breakdown
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={navigateToCallSheet}>
                   <ClipboardList className="mr-2 h-4 w-4" />
@@ -146,9 +156,9 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
               variant="link" 
               size="sm" 
               className="px-0 h-auto"
-              onClick={navigateToCallSheet}
+              onClick={navigateToBreakdown}
             >
-              Call Sheet
+              Breakdown
             </Button>
             <span className="text-muted-foreground/30">•</span>
             <Button variant="link" size="sm" className="px-0 h-auto">Editor</Button>
