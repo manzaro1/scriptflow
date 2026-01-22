@@ -31,6 +31,7 @@ import ProductionOverseer from "@/components/ProductionOverseer";
 import ShareScriptModal from "@/components/ShareScriptModal";
 import StoryboardGenerator from "@/components/StoryboardGenerator";
 import RenameScriptModal from "@/components/RenameScriptModal";
+import DialogueFeedback from "@/components/DialogueFeedback";
 import { cn } from "@/lib/utils";
 
 type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
@@ -181,7 +182,7 @@ const ScriptEditor = () => {
     const base = "outline-none transition-all duration-150 min-h-[1.5em] focus:bg-primary/5 rounded px-1 whitespace-pre-wrap";
     switch (type) {
       case 'character': return cn(base, "text-center uppercase font-bold w-[50%] mx-auto mb-1 mt-6");
-      case 'dialogue': return cn(base, "text-center w-[65%] mx-auto mb-4");
+      case 'dialogue': return cn(base, "text-center w-[65%] mx-auto mb-4 relative group");
       case 'parenthetical': return cn(base, "text-center w-[40%] mx-auto italic text-sm mb-1 before:content-['('] after:content-[')']");
       case 'slugline': return cn(base, "uppercase font-bold mb-4 mt-8");
       default: return cn(base, "mb-4 text-left");
@@ -194,6 +195,19 @@ const ScriptEditor = () => {
       return block.content.replace(/^\(|\)$/g, '');
     }
     return block.content;
+  };
+
+  // Helper to find the character name preceding a dialogue block
+  const getCharacterForDialogue = (index: number): string => {
+    for (let i = index - 1; i >= 0; i--) {
+      if (blocks[i].type === 'character') {
+        return blocks[i].content;
+      }
+      if (blocks[i].type === 'slugline' || blocks[i].type === 'action') {
+        break; // Stop searching if we hit a major scene element
+      }
+    }
+    return 'UNKNOWN';
   };
 
   return (
@@ -362,6 +376,14 @@ const ScriptEditor = () => {
                   onFocus={() => setFocusedBlockId(block.id)}
                 >
                   {renderBlockContent(block)}
+                  {block.type === 'dialogue' && (
+                    <DialogueFeedback 
+                      characterName={getCharacterForDialogue(index)}
+                      dialogue={block.content}
+                      // Mock consistency score based on content length for demonstration
+                      consistencyScore={block.content.length > 20 ? 68 : 95} 
+                    />
+                  )}
                 </div>
               ))}
             </div>
