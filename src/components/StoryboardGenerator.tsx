@@ -10,7 +10,8 @@ import {
   Download,
   Share2,
   Key,
-  Cpu
+  Cpu,
+  Film
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { 
@@ -31,8 +32,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { showSuccess } from "@/utils/toast";
-import StoryboardView from "./StoryboardView";
+import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
+import StoryboardView, { StoryboardRow } from "./StoryboardView";
 
 interface ScriptBlock {
   id: string;
@@ -51,7 +52,6 @@ const AI_MODELS = [
   { id: 'gemini-pro-vision', name: 'Gemini 1.5 Pro (Vision)', provider: 'Google' },
   { id: 'dalle-3-cinematic', name: 'DALL-E 3 (Cinematic)', provider: 'OpenAI' },
   { id: 'flux-1-pro', name: 'Flux.1 Pro (Narrative)', provider: 'Black Forest' },
-  { id: 'sd-3-ultra', name: 'Stable Diffusion 3 Ultra', provider: 'Stability' },
 ];
 
 const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }: StoryboardGeneratorProps) => {
@@ -59,40 +59,56 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
   const [showResult, setShowResult] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-pro-vision');
   const [apiKey, setApiKey] = useState("");
-  const [storyboardData, setStoryboardData] = useState<any[]>([]);
+  const [storyboardData, setStoryboardData] = useState<StoryboardRow[]>([]);
 
-  // Simulation of the prompt-based extraction logic (Script -> Storyboard Standard JSON)
-  const extractStoryboardData = () => {
-    const extracted: any[] = [];
-    let currentSlug = "";
+  const extractCinematicData = (): StoryboardRow[] => {
+    const extracted: StoryboardRow[] = [];
+    let currentSlug = "INT. UNKNOWN - DAY";
     let shotCount = 1;
 
-    // Logic: Iterate through blocks and group them into "Visual Units"
+    // Analyze environment lighting from slugline
+    const getLightingFromSlug = (slug: string) => {
+      if (slug.toUpperCase().includes('NIGHT')) return 'Chiaroscuro / Neon Low Light';
+      if (slug.toUpperCase().includes('EXT.')) return 'Natural High Contrast';
+      return 'Diffused Practical Lighting';
+    };
+
+    const getColorGradeFromSlug = (slug: string) => {
+      if (slug.toUpperCase().includes('NIGHT')) return 'Teal & Orange / Cyberpunk';
+      if (slug.toUpperCase().includes('EXT.')) return 'Warm Golden Hour / Desaturated';
+      return 'Neutral Cinematic';
+    };
+
     scriptBlocks.forEach((block, index) => {
       if (block.type === 'slugline') {
         currentSlug = block.content;
       }
 
       if (block.type === 'action') {
-        // Find associated dialogue (audio tags) immediately following this action or preceding it
-        const associatedDialogue = scriptBlocks
-          .slice(index + 1, index + 4)
-          .filter(b => b.type === 'dialogue')
-          .map(b => b.content)
-          .join(" / ");
+        // Look for emotional context in following dialogue or parentheticals
+        const context = scriptBlocks.slice(index + 1, index + 5);
+        const emotionBlock = context.find(b => b.type === 'parenthetical' || b.type === 'dialogue');
+        const dialogueBeat = context.find(b => b.type === 'dialogue')?.content || '[Ambient Action]';
+        
+        const shotTypes = ['W.S', 'M.S', 'C.U', 'O.T.S', 'E.C.U'];
+        const angles = ['Normal Angle', 'Low Angle', 'High Angle', 'Dutch Angle'];
+        const emotions = ['Tense', 'Melancholic', 'Suspenseful', 'Hopeful', 'Aggressive'];
 
-        const shotTypes = ['W.S', 'M.S', 'C.U', 'E.C.U', 'O.T.S'];
-        const angles = ['Normal Angle', 'Low Angle', 'High Angle', 'Dutch Angle', 'Birds Eye'];
-        const sfx = ['Atmospheric Hum', 'Action Foley', 'Distant Echo', 'Rhythmic Pulse', 'Mechanical Grind'];
+        // Determine specific cinematic parameters based on block keywords
+        const isCloseUp = block.content.toLowerCase().match(/face|eyes|small|glowing|hand/);
+        const isWide = block.content.toLowerCase().match(/skyline|city|room|landscape/);
 
         extracted.push({
           id: block.id,
           shotNumber: shotCount.toString().padStart(2, '0'),
-          shotType: shotTypes[index % shotTypes.length],
+          shotType: isCloseUp ? 'C.U' : (isWide ? 'W.S' : shotTypes[index % shotTypes.length]),
           cameraAngle: angles[index % angles.length],
-          visualPrompt: `Cinematic frame, ${block.content}. Lighting influenced by ${currentSlug}. Professional color grade, 35mm anamorphic lens style, hyper-realistic production design.`,
-          audioTag: associatedDialogue || `[Silent / Ambient Narrative]`,
-          sfx: block.content.toLowerCase().includes('rain') ? 'Rain FX' : sfx[index % sfx.length],
+          emotion: emotions[index % emotions.length],
+          lighting: getLightingFromSlug(currentSlug),
+          colorGrade: getColorGradeFromSlug(currentSlug),
+          visualPrompt: `High-end cinematography, ${block.content}. shot on 35mm anamorphic. ${getColorGradeFromSlug(currentSlug)} palette. ${getLightingFromSlug(currentSlug)} lighting. Narrative focal point.`,
+          audioTag: dialogueBeat,
+          sfx: block.content.toLowerCase().includes('rain') ? 'Rain / Atmospheric Patter' : 'Dynamic Foley',
           transition: index === 0 ? 'FADE IN' : 'CUT TO',
           imageUrl: `https://images.unsplash.com/photo-${1550000000000 + (index * 123456)}?auto=format&fit=crop&q=80&w=1200`
         });
@@ -100,26 +116,41 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
       }
     });
 
-    return extracted.slice(0, 12); // Limit for the blueprint display
+    return extracted.slice(0, 15);
   };
 
   const handleGenerate = () => {
     setIsGenerating(true);
-    // Simulate complex parsing time
     setTimeout(() => {
-      const data = extractStoryboardData();
+      const data = extractCinematicData();
       setStoryboardData(data);
       setIsGenerating(false);
       setShowResult(true);
-      showSuccess(`Shooting blueprint successfully extracted for "${scriptTitle}"`);
-    }, 2500);
+      showSuccess(`Cinematic blueprint extracted from script dynamics.`);
+    }, 2000);
+  };
+
+  const handleDownload = () => {
+    const toastId = showLoading("Exporting Production Blueprint...");
+    
+    // Simulate generation of a PDF/Structured package
+    setTimeout(() => {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(storyboardData, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `${scriptTitle.replace(/\s+/g, '_')}_Storyboard_Package.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+      
+      dismissToast(toastId);
+      showSuccess("Production package downloaded successfully.");
+    }, 1500);
   };
 
   const handleRegenerateShot = (id: string, newPrompt?: string) => {
-    // Show loading state by clearing the specific image
     setStoryboardData(prev => prev.map(row => row.id === id ? { ...row, imageUrl: undefined } : row));
 
-    // Simulate API call to image generator with new prompt
     setTimeout(() => {
       setStoryboardData(prev => prev.map(row => {
         if (row.id === id) {
@@ -131,45 +162,43 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
         }
         return row;
       }));
-    }, 1200);
+    }, 1500);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className={showResult ? "sm:max-w-[95vw] max-h-[95vh] overflow-y-auto bg-black border-white/10" : "sm:max-w-[600px] bg-white"}>
-        <DialogHeader>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="bg-orange-600 text-white p-1.5 rounded-lg shadow-lg">
-              <Sparkles size={18} />
+      <DialogContent className={showResult ? "sm:max-w-[98vw] max-h-[95vh] overflow-y-auto bg-black border-white/10 p-0" : "sm:max-w-[600px] bg-white"}>
+        {!showResult && (
+          <DialogHeader className="p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="bg-orange-600 text-white p-1.5 rounded-lg shadow-lg">
+                <Sparkles size={18} />
+              </div>
+              <DialogTitle>AI Storyboard Engine</DialogTitle>
             </div>
-            <DialogTitle className={showResult ? "text-white" : ""}>
-              {showResult ? "Master Shooting Blueprint" : "Configure AI Storyboard Engine"}
-            </DialogTitle>
-          </div>
-          <DialogDescription className={showResult ? "text-white/60" : ""}>
-            {showResult 
-              ? `Dynamic shooting plan for "${scriptTitle}" generated via ${AI_MODELS.find(m => m.id === selectedModel)?.name}.`
-              : "Set your parameters to extract visual beats, camera technicals, and audio tags from your script draft."}
-          </DialogDescription>
-        </DialogHeader>
+            <DialogDescription>
+              Extract exact shots, cinematic lighting, and emotional cues from your script blocks.
+            </DialogDescription>
+          </DialogHeader>
+        )}
 
-        <div className="py-4">
+        <div className={showResult ? "p-0" : "p-6 py-0"}>
           {!showResult ? (
             <Tabs defaultValue="engine" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="engine" className="gap-2">
-                  <Cpu size={14} />
-                  Engine
+                  <Film size={14} />
+                  Narrative Parser
                 </TabsTrigger>
                 <TabsTrigger value="keys" className="gap-2">
                   <Key size={14} />
-                  API Management
+                  Engine Keys
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="engine" className="space-y-6 py-4">
+              <TabsContent value="engine" className="space-y-6 pb-6">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Select Extraction Engine</Label>
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Generation Model</Label>
                   <Select value={selectedModel} onValueChange={setSelectedModel}>
                     <SelectTrigger className="h-11">
                       <SelectValue />
@@ -182,49 +211,33 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-muted-foreground italic">
-                    The {AI_MODELS.find(m => m.id === selectedModel)?.provider} model will be used to transform action lines into descriptive visual prompts.
-                  </p>
                 </div>
 
-                <div className="p-8 border-2 border-dashed rounded-2xl bg-muted/30 flex flex-col items-center gap-4 text-center">
-                  <Layout size={40} className="text-muted-foreground/30" />
-                  <div>
-                    <h4 className="font-bold">Extraction Profile: Professional</h4>
-                    <p className="text-xs text-muted-foreground max-w-[280px] mx-auto mt-1">
-                      Targeting {scriptBlocks.filter(b => b.type === 'action').length} visual units across {scriptBlocks.filter(b => b.type === 'slugline').length} locations.
-                    </p>
-                  </div>
+                <div className="p-8 border rounded-2xl bg-muted/30 text-center">
+                  <Layout size={32} className="mx-auto mb-4 text-muted-foreground/50" />
+                  <h4 className="font-bold">Source: "{scriptTitle}"</h4>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Analyzing {scriptBlocks.length} blocks to extract a sequence of {scriptBlocks.filter(b => b.type === 'action').length} visual shots.
+                  </p>
                 </div>
               </TabsContent>
 
-              <TabsContent value="keys" className="space-y-4 py-4">
+              <TabsContent value="keys" className="space-y-4 pb-6">
                 <div className="space-y-3">
                   <Label htmlFor="custom-key" className="text-xs font-bold uppercase tracking-widest">Provider API Key</Label>
-                  <div className="flex gap-2">
-                    <Input 
-                      id="custom-key" 
-                      type="password" 
-                      placeholder="Paste your API key here..." 
-                      className="h-11"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                    />
-                    <Button variant="outline" className="h-11" onClick={() => showSuccess("API Key linked to session")}>Link</Button>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex gap-3">
-                    <div className="bg-blue-500 text-white p-1 rounded h-fit shrink-0">
-                      <Key size={12} />
-                    </div>
-                    <p className="text-[10px] text-blue-700 leading-normal">
-                      Connecting your own key enables high-resolution (4K) image generation and removes the 10-shot daily limit.
-                    </p>
-                  </div>
+                  <Input 
+                    id="custom-key" 
+                    type="password" 
+                    placeholder="Enter key for high-res generation..." 
+                    className="h-11"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                  />
                 </div>
               </TabsContent>
             </Tabs>
           ) : (
-            <div className="space-y-6">
+            <div className="p-8">
               <StoryboardView 
                 title={scriptTitle} 
                 data={storyboardData} 
@@ -234,40 +247,40 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
           )}
         </div>
 
-        <DialogFooter className="flex justify-between items-center w-full">
+        <DialogFooter className={showResult ? "sticky bottom-0 bg-black/90 backdrop-blur border-t border-white/10 p-4 px-8 z-50 flex justify-between items-center" : "p-6 border-t"}>
           {showResult ? (
-            <div className="flex justify-between w-full">
+            <>
               <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => setShowResult(false)}>
                 <History className="mr-2 h-4 w-4" />
-                Re-Configure
+                Refine Parameters
               </Button>
-              <div className="flex gap-2">
-                <Button variant="outline" className="bg-transparent text-white border-white/20 hover:bg-white/10">
+              <div className="flex gap-3">
+                <Button variant="outline" className="bg-transparent text-white border-white/20 hover:bg-white/10" onClick={handleDownload}>
                   <Download className="mr-2 h-4 w-4" />
-                  Download Blueprint
+                  Download Package
                 </Button>
-                <Button className="bg-orange-600 hover:bg-orange-700">
+                <Button className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={() => showSuccess("Distribution link generated.")}>
                   <Share2 className="mr-2 h-4 w-4" />
-                  Distribute to Crew
+                  Share with Crew
                 </Button>
               </div>
-            </div>
+            </>
           ) : (
             <>
               <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button 
                 onClick={handleGenerate} 
                 disabled={isGenerating}
-                className="bg-orange-600 hover:bg-orange-700 h-11 min-w-[200px] shadow-lg"
+                className="bg-orange-600 hover:bg-orange-700 h-11 min-w-[200px]"
               >
                 {isGenerating ? (
                   <>
                     <Loader2 size={18} className="animate-spin mr-2" />
-                    Forging Blueprint...
+                    Parsing Script...
                   </>
                 ) : (
                   <>
-                    Forge Shooting Plan
+                    Forge Production Plan
                     <ArrowRight size={18} className="ml-2" />
                   </>
                 )}
