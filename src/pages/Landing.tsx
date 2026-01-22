@@ -38,8 +38,8 @@ const Landing = () => {
             <a href="#pricing" className="hover:text-primary transition-colors">Pricing</a>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>Login</Button>
-            <Button onClick={() => navigate('/dashboard')} className="shadow-md">Get Started Free</Button>
+            <Button variant="ghost" onClick={() => navigate('/auth')}>Login</Button>
+            <Button onClick={() => navigate('/auth')} className="shadow-md">Get Started Free</Button>
           </div>
         </div>
       </nav>
@@ -60,7 +60,7 @@ const Landing = () => {
               The world's first AI-integrated scriptwriting platform that transforms your narrative into technical blueprints, storyboards, and production intelligence.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Button size="lg" className="h-14 px-8 text-lg font-bold gap-2 shadow-xl shadow-primary/20" onClick={() => navigate('/dashboard')}>
+              <Button size="lg" className="h-14 px-8 text-lg font-bold gap-2 shadow-xl shadow-primary/20" onClick={() => navigate('/auth')}>
                 Start Writing for Free
                 <ArrowRight size={20} />
               </Button>
@@ -194,7 +194,7 @@ const Landing = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full h-11" onClick={() => navigate('/dashboard')}>Get Started</Button>
+                <Button variant="outline" className="w-full h-11" onClick={() => navigate('/auth')}>Get Started</Button>
               </CardFooter>
             </Card>
 
@@ -232,7 +232,7 @@ const Landing = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" onClick={() => navigate('/dashboard')}>Go Pro Now</Button>
+                <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" onClick={() => navigate('/auth')}>Go Pro Now</Button>
               </CardFooter>
             </Card>
 
@@ -264,7 +264,7 @@ const Landing = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full h-11" onClick={() => navigate('/dashboard')}>Contact Sales</Button>
+                <Button variant="outline" className="w-full h-11" onClick={() => navigate('/auth')}>Contact Sales</Button>
               </CardFooter>
             </Card>
           </div>

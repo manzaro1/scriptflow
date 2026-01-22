@@ -13,6 +13,7 @@ import AboutUs from "./pages/AboutUs";
 import Careers from "./pages/Careers";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<AuthPage />} />
             <Route path="/dashboard" element={<Index />} />
             <Route path="/editor" element={<ScriptEditor />} />
             <Route path="/profile" element={<Profile />} />
