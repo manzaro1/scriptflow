@@ -21,6 +21,7 @@ const AuthPage = () => {
     
     setTimeout(() => {
       setIsLoading(false);
+      localStorage.setItem('isAuthenticated', 'true');
       showSuccess(activeTab === 'login' ? "Welcome back! Loading your scripts..." : "Account created! Starting your free trial.");
       navigate('/dashboard');
     }, 1500);

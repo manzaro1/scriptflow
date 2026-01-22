@@ -20,6 +20,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 
 const Landing = () => {
   const navigate = useNavigate();
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+
+  const handleProductClick = (path: string) => {
+    if (isAuthenticated) {
+      navigate(path);
+    } else {
+      navigate('/auth');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020817] text-slate-900 dark:text-slate-50 selection:bg-primary selection:text-primary-foreground">
@@ -38,8 +47,14 @@ const Landing = () => {
             <a href="#pricing" className="hover:text-primary transition-colors">Pricing</a>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/auth')}>Login</Button>
-            <Button onClick={() => navigate('/auth')} className="shadow-md">Get Started Free</Button>
+            {isAuthenticated ? (
+              <Button onClick={() => navigate('/dashboard')} className="shadow-md">Go to Dashboard</Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => navigate('/auth')}>Login</Button>
+                <Button onClick={() => navigate('/auth')} className="shadow-md">Get Started Free</Button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -60,8 +75,8 @@ const Landing = () => {
               The world's first AI-integrated scriptwriting platform that transforms your narrative into technical blueprints, storyboards, and production intelligence.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Button size="lg" className="h-14 px-8 text-lg font-bold gap-2 shadow-xl shadow-primary/20" onClick={() => navigate('/auth')}>
-                Start Writing for Free
+              <Button size="lg" className="h-14 px-8 text-lg font-bold gap-2 shadow-xl shadow-primary/20" onClick={() => handleProductClick('/dashboard')}>
+                {isAuthenticated ? 'Open Dashboard' : 'Start Writing for Free'}
                 <ArrowRight size={20} />
               </Button>
               <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-bold">
@@ -194,7 +209,7 @@ const Landing = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full h-11" onClick={() => navigate('/auth')}>Get Started</Button>
+                <Button variant="outline" className="w-full h-11" onClick={() => handleProductClick('/dashboard')}>Get Started</Button>
               </CardFooter>
             </Card>
 
@@ -232,7 +247,7 @@ const Landing = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" onClick={() => navigate('/auth')}>Go Pro Now</Button>
+                <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" onClick={() => handleProductClick('/dashboard')}>Go Pro Now</Button>
               </CardFooter>
             </Card>
 
@@ -264,7 +279,7 @@ const Landing = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full h-11" onClick={() => navigate('/auth')}>Contact Sales</Button>
+                <Button variant="outline" className="w-full h-11" onClick={() => handleProductClick('/dashboard')}>Contact Sales</Button>
               </CardFooter>
             </Card>
           </div>
@@ -286,9 +301,9 @@ const Landing = () => {
           <div className="space-y-4">
             <h4 className="font-bold text-sm">Product</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link to="/editor" className="hover:text-primary transition-colors">Editor</Link></li>
-              <li><button onClick={() => navigate('/editor')} className="hover:text-primary transition-colors">AI Storyboard</button></li>
-              <li><Link to="/call-sheet" className="hover:text-primary transition-colors">Call Sheets</Link></li>
+              <li><button onClick={() => handleProductClick('/editor')} className="hover:text-primary transition-colors">Editor</button></li>
+              <li><button onClick={() => handleProductClick('/editor')} className="hover:text-primary transition-colors">AI Storyboard</button></li>
+              <li><button onClick={() => handleProductClick('/call-sheet')} className="hover:text-primary transition-colors">Call Sheets</button></li>
               <li><a href="#pricing" className="hover:text-primary transition-colors">Pricing</a></li>
             </ul>
           </div>

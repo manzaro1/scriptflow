@@ -15,6 +15,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
+import AuthGuard from "./components/AuthGuard";
 
 const queryClient = new QueryClient();
 
@@ -28,10 +29,13 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/dashboard" element={<Index />} />
-            <Route path="/editor" element={<ScriptEditor />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/call-sheet" element={<CallSheet />} />
+            
+            {/* Protected Routes */}
+            <Route path="/dashboard" element={<AuthGuard><Index /></AuthGuard>} />
+            <Route path="/editor" element={<AuthGuard><ScriptEditor /></AuthGuard>} />
+            <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
+            <Route path="/call-sheet" element={<AuthGuard><CallSheet /></AuthGuard>} />
+            
             <Route path="/about-us" element={<AboutUs />} />
             <Route path="/careers" element={<Careers />} />
             <Route path="/terms" element={<TermsOfService />} />
