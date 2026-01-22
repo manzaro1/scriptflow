@@ -12,7 +12,8 @@ import {
   Key,
   Film,
   FileJson,
-  FileText
+  FileText,
+  Monitor
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { 
@@ -63,10 +64,17 @@ const AI_MODELS = [
   { id: 'flux-1-pro', name: 'Flux.1 Pro (Narrative)', provider: 'Black Forest' },
 ];
 
+const ASPECT_RATIOS = [
+  { id: '2.39:1', name: '2.39:1 (Anamorphic Scope)' },
+  { id: '1.85:1', name: '1.85:1 (Flat Cinematic)' },
+  { id: '16:9', name: '16:9 (HD / Digital)' },
+];
+
 const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }: StoryboardGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-pro-vision');
+  const [aspectRatio, setAspectRatio] = useState<'2.39:1' | '1.85:1' | '16:9'>('2.39:1');
   const [apiKey, setApiKey] = useState("");
   const [storyboardData, setStoryboardData] = useState<StoryboardRow[]>([]);
 
@@ -97,21 +105,30 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
         const dialogueBeat = context.find(b => b.type === 'dialogue')?.content || '[Ambient Action]';
         
         const shotTypes = ['W.S', 'M.S', 'C.U', 'O.T.S', 'E.C.U'];
+        const movements = ['Static / Locked', 'Slow Dolly In', 'Lateral Tracking Shot', 'Handheld / Shaky', 'Crane Down'];
         const angles = ['Normal Angle', 'Low Angle', 'High Angle', 'Dutch Angle'];
         const emotions = ['Tense', 'Melancholic', 'Suspenseful', 'Hopeful', 'Aggressive'];
+        const lenses = ['14mm Ultra-Wide', '24mm Wide', '35mm Narrative', '50mm Prime', '85mm Portrait'];
 
         const isCloseUp = block.content.toLowerCase().match(/face|eyes|small|glowing|hand/);
         const isWide = block.content.toLowerCase().match(/skyline|city|room|landscape/);
 
+        const currentShotType = isCloseUp ? 'C.U' : (isWide ? 'W.S' : shotTypes[index % shotTypes.length]);
+        const currentLens = isCloseUp ? '85mm Portrait' : (isWide ? '14mm Ultra-Wide' : lenses[index % lenses.length]);
+
         extracted.push({
           id: block.id,
+          sceneTitle: currentSlug,
           shotNumber: shotCount.toString().padStart(2, '0'),
-          shotType: isCloseUp ? 'C.U' : (isWide ? 'W.S' : shotTypes[index % shotTypes.length]),
+          shotType: currentShotType,
           cameraAngle: angles[index % angles.length],
+          movement: movements[index % movements.length],
+          lens: currentLens,
           emotion: emotions[index % emotions.length],
           lighting: getLightingFromSlug(currentSlug),
           colorGrade: getColorGradeFromSlug(currentSlug),
-          visualPrompt: `High-end cinematography, ${block.content}. shot on 35mm anamorphic. ${getColorGradeFromSlug(currentSlug)} palette. ${getLightingFromSlug(currentSlug)} lighting. Narrative focal point.`,
+          blockingNotes: `Actor enters from ${index % 2 === 0 ? 'Camera Left' : 'Camera Right'}. Maintain focus on foreground elements. Primary eye-line directed at mid-frame.`,
+          visualPrompt: `High-end cinematography, ${block.content}. lens: ${currentLens}. aspect: ${aspectRatio}. ${getColorGradeFromSlug(currentSlug)} palette. ${getLightingFromSlug(currentSlug)} lighting. Emotional tone: ${emotions[index % emotions.length]}. [Character Seed: Narrative Consistenty Active]`,
           audioTag: dialogueBeat,
           sfx: block.content.toLowerCase().includes('rain') ? 'Rain / Atmospheric Patter' : 'Dynamic Foley',
           transition: index === 0 ? 'FADE IN' : 'CUT TO',
@@ -131,19 +148,19 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
       setStoryboardData(data);
       setIsGenerating(false);
       setShowResult(true);
-      showSuccess(`Cinematic blueprint extracted from script dynamics.`);
+      showSuccess(`Production Blueprint forged with ${aspectRatio} masking.`);
     }, 2000);
   };
 
   const handleExport = async (format: 'json' | 'pdf') => {
-    const toastId = showLoading(`Preparing ${format.toUpperCase()} export...`);
+    const toastId = showLoading(`Exporting Master Blueprint (${format.toUpperCase()})...`);
     
     try {
       if (format === 'json') {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(storyboardData, null, 2));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `${scriptTitle.replace(/\s+/g, '_')}_Storyboard.json`);
+        downloadAnchorNode.setAttribute("download", `${scriptTitle.replace(/\s+/g, '_')}_Blueprint.json`);
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
@@ -154,7 +171,7 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
         const canvas = await html2canvas(element, {
           useCORS: true,
           scale: 2,
-          backgroundColor: '#0A0A0A'
+          backgroundColor: '#050505'
         });
         
         const imgData = canvas.toDataURL('image/png');
@@ -165,15 +182,14 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
         });
         
         pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-        pdf.save(`${scriptTitle.replace(/\s+/g, '_')}_Production_Blueprint.pdf`);
+        pdf.save(`${scriptTitle.replace(/\s+/g, '_')}_Master_Production_Blueprint.pdf`);
       }
       
       dismissToast(toastId);
-      showSuccess(`${format.toUpperCase()} exported successfully`);
+      showSuccess("Export complete.");
     } catch (error) {
       dismissToast(toastId);
-      showError("Export failed. Please try again.");
-      console.error("Export failed:", error);
+      showError("Export failed.");
     }
   };
 
@@ -203,61 +219,87 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
               <div className="bg-orange-600 text-white p-1.5 rounded-lg shadow-lg">
                 <Sparkles size={18} />
               </div>
-              <DialogTitle>AI Storyboard Engine</DialogTitle>
+              <DialogTitle>Forge Technical Blueprint</DialogTitle>
             </div>
             <DialogDescription>
-              Extract exact shots, cinematic lighting, and emotional cues from your script blocks.
+              Configure the cinematic parameters for your shot-by-shot extraction.
             </DialogDescription>
           </DialogHeader>
         )}
 
         <div className={showResult ? "p-0" : "p-6 py-0"}>
           {!showResult ? (
-            <Tabs defaultValue="engine" className="w-full">
+            <Tabs defaultValue="optics" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="engine" className="gap-2">
-                  <Film size={14} />
-                  Narrative Parser
+                <TabsTrigger value="optics" className="gap-2">
+                  <Monitor size={14} />
+                  Optics & Frame
                 </TabsTrigger>
-                <TabsTrigger value="keys" className="gap-2">
+                <TabsTrigger value="engine" className="gap-2">
                   <Key size={14} />
-                  Engine Keys
+                  Engine Config
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="engine" className="space-y-6 pb-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Generation Model</Label>
+              <TabsContent value="optics" className="space-y-6 pb-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Target Aspect Ratio</Label>
+                    <Select value={aspectRatio} onValueChange={(v: any) => setAspectRatio(v)}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ASPECT_RATIOS.map(ratio => (
+                          <SelectItem key={ratio.id} value={ratio.id}>{ratio.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Lens Simulation</Label>
+                    <Select defaultValue="anamorphic">
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select Lens Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="anamorphic">Anamorphic (Oval Bokeh)</SelectItem>
+                        <SelectItem value="spherical">Spherical (Natural)</SelectItem>
+                        <SelectItem value="vintage">Vintage / 70s Glass</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="p-8 border rounded-2xl bg-muted/30 text-center border-dashed border-primary/20">
+                  <Film size={32} className="mx-auto mb-4 text-orange-500/50" />
+                  <h4 className="font-bold">Production: "{scriptTitle}"</h4>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-2">
+                    Extracting {scriptBlocks.filter(b => b.type === 'action').length} shots with focal length heuristics
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="engine" className="space-y-4 pb-6">
+                <div className="space-y-3">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Model Pipeline</Label>
                   <Select value={selectedModel} onValueChange={setSelectedModel}>
                     <SelectTrigger className="h-11">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {AI_MODELS.map(model => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name} — {model.provider}
-                        </SelectItem>
+                        <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="p-8 border rounded-2xl bg-muted/30 text-center">
-                  <Layout size={32} className="mx-auto mb-4 text-muted-foreground/50" />
-                  <h4 className="font-bold">Source: "{scriptTitle}"</h4>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Analyzing {scriptBlocks.length} blocks to extract a sequence of {scriptBlocks.filter(b => b.type === 'action').length} visual shots.
-                  </p>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="keys" className="space-y-4 pb-6">
                 <div className="space-y-3">
-                  <Label htmlFor="custom-key" className="text-xs font-bold uppercase tracking-widest">Provider API Key</Label>
+                  <Label htmlFor="custom-key" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Provider API Key</Label>
                   <Input 
                     id="custom-key" 
                     type="password" 
-                    placeholder="Enter key for high-res generation..." 
+                    placeholder="Enter key for HD generation..." 
                     className="h-11"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
@@ -270,42 +312,43 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
               <StoryboardView 
                 title={scriptTitle} 
                 data={storyboardData} 
+                aspectRatio={aspectRatio}
                 onRegenerateShot={handleRegenerateShot} 
               />
             </div>
           )}
         </div>
 
-        <DialogFooter className={showResult ? "sticky bottom-0 bg-black/90 backdrop-blur border-t border-white/10 p-4 px-8 z-50 flex justify-between items-center" : "p-6 border-t"}>
+        <DialogFooter className={showResult ? "sticky bottom-0 bg-black/90 backdrop-blur border-t border-white/10 p-5 px-10 z-50 flex justify-between items-center" : "p-6 border-t"}>
           {showResult ? (
             <>
               <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => setShowResult(false)}>
                 <History className="mr-2 h-4 w-4" />
-                Refine Parameters
+                Refine Optics
               </Button>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="bg-transparent text-white border-white/20 hover:bg-white/10">
                       <Download className="mr-2 h-4 w-4" />
-                      Export
+                      Export Package
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-black border-white/10 text-white">
                     <DropdownMenuItem onClick={() => handleExport('json')} className="hover:bg-white/10 cursor-pointer gap-2">
                       <FileJson size={14} className="text-blue-400" />
-                      Download JSON
+                      JSON Structure
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleExport('pdf')} className="hover:bg-white/10 cursor-pointer gap-2">
                       <FileText size={14} className="text-orange-400" />
-                      Download PDF Blueprint
+                      PDF Blueprint
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 
-                <Button className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={() => showSuccess("Distribution link generated.")}>
+                <Button className="bg-orange-600 hover:bg-orange-700 font-bold px-8" onClick={() => showSuccess("Distribution link generated.")}>
                   <Share2 className="mr-2 h-4 w-4" />
-                  Share with Crew
+                  Distribute to Crew
                 </Button>
               </div>
             </>
@@ -315,16 +358,16 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
               <Button 
                 onClick={handleGenerate} 
                 disabled={isGenerating}
-                className="bg-orange-600 hover:bg-orange-700 h-11 min-w-[200px]"
+                className="bg-orange-600 hover:bg-orange-700 h-11 min-w-[200px] font-bold"
               >
                 {isGenerating ? (
                   <>
                     <Loader2 size={18} className="animate-spin mr-2" />
-                    Parsing Script...
+                    Extracting Production Data...
                   </>
                 ) : (
                   <>
-                    Forge Production Plan
+                    Forge Cinematic Blueprint
                     <ArrowRight size={18} className="ml-2" />
                   </>
                 )}
