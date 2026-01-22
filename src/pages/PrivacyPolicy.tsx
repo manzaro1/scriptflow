@@ -7,7 +7,7 @@ const PrivacyPolicy = () => {
     <div className="min-h-screen bg-background">
       <div className="max-w-3xl mx-auto px-6 py-20 prose dark:prose-invert">
         <h1 className="text-4xl font-black mb-8">Privacy Policy</h1>
-        <p className="text-muted-foreground">Last updated: October 2024</p>
+        <p className="text-muted-foreground">Last updated: October 2026</p>
 
         <section className="mt-12 space-y-6">
           <h2 className="text-2xl font-bold text-foreground">1. Information We Collect</h2>
