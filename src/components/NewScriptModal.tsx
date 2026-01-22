@@ -21,12 +21,16 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles, FileText, Edit3 } from 'lucide-react';
 import { showSuccess } from "@/utils/toast";
+import ScriptUpload from "./ScriptUpload";
 
 const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
   const [step, setStep] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
+  const [creationMode, setCreationMode] = useState<'scratch' | 'upload'>('scratch');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [characters, setCharacters] = useState<any[]>([]);
   
   // Character form state
@@ -56,10 +60,15 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
   };
 
   const handleCreate = () => {
-    showSuccess("Script created with AI character profiles synchronized.");
+    const message = creationMode === 'upload' 
+      ? `Script imported from "${uploadedFile?.name}" with AI character profiles synchronized.`
+      : "Script created with AI character profiles synchronized.";
+    
+    showSuccess(message);
     setIsOpen(false);
     setStep(1);
     setCharacters([]);
+    setUploadedFile(null);
   };
 
   return (
@@ -80,48 +89,79 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
             </div>
             <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Step {step} of 2</span>
           </div>
-          <DialogTitle>{step === 1 ? "Start New Screenplay" : "Cast & Character DNA"}</DialogTitle>
+          <DialogTitle>
+            {step === 1 
+              ? (creationMode === 'scratch' ? "Start New Screenplay" : "Import Existing Script") 
+              : "Cast & Character DNA"}
+          </DialogTitle>
           <DialogDescription>
             {step === 1 
-              ? "Enter the basic details for your new project." 
+              ? (creationMode === 'scratch' ? "Enter the basic details for your new project." : "Upload your script and our AI will parse the structure automatically.")
               : "Define the actors that will drive your narrative. This helps the AI maintain behavior."}
           </DialogDescription>
         </DialogHeader>
 
         {step === 1 ? (
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" placeholder="Untitled Screenplay" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="genre">Genre</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select genre" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="action">Action</SelectItem>
-                    <SelectItem value="comedy">Comedy</SelectItem>
-                    <SelectItem value="drama">Drama</SelectItem>
-                    <SelectItem value="sci-fi">Sci-Fi</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="format">Template</Label>
-                <Select defaultValue="standard">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard Screenplay</SelectItem>
-                    <SelectItem value="stage">Stage Play</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          <div className="space-y-6 py-4">
+            <Tabs 
+              defaultValue="scratch" 
+              className="w-full" 
+              onValueChange={(v) => setCreationMode(v as 'scratch' | 'upload')}
+            >
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="scratch" className="gap-2">
+                  <Edit3 size={14} />
+                  Start from Scratch
+                </TabsTrigger>
+                <TabsTrigger value="upload" className="gap-2">
+                  <FileText size={14} />
+                  Upload Document
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="scratch" className="space-y-4 pt-0">
+                <div className="grid gap-2">
+                  <Label htmlFor="title">Title</Label>
+                  <Input id="title" placeholder="Untitled Screenplay" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="genre">Genre</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select genre" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="action">Action</SelectItem>
+                        <SelectItem value="comedy">Comedy</SelectItem>
+                        <SelectItem value="drama">Drama</SelectItem>
+                        <SelectItem value="sci-fi">Sci-Fi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="format">Template</Label>
+                    <Select defaultValue="standard">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard Screenplay</SelectItem>
+                        <SelectItem value="stage">Stage Play</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="upload" className="space-y-4 pt-0">
+                <ScriptUpload onFileSelect={setUploadedFile} />
+                <div className="grid gap-2 mt-4">
+                  <Label htmlFor="upload-title">Title (Optional)</Label>
+                  <Input id="upload-title" placeholder={uploadedFile ? uploadedFile.name.replace(/\.[^/.]+$/, "") : "Document Title"} />
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         ) : (
           <div className="py-4 space-y-6">
@@ -199,7 +239,11 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
           {step === 1 ? (
             <>
               <div />
-              <Button onClick={() => setStep(2)} className="gap-2">
+              <Button 
+                onClick={() => setStep(2)} 
+                className="gap-2"
+                disabled={creationMode === 'upload' && !uploadedFile}
+              >
                 Next: Add Characters
                 <ArrowRight size={16} />
               </Button>
@@ -211,7 +255,7 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
                 Back
               </Button>
               <Button onClick={handleCreate} className="gap-2 bg-green-600 hover:bg-green-700">
-                Create Script
+                {creationMode === 'upload' ? 'Import Script' : 'Create Script'}
                 <Check size={16} />
               </Button>
             </>
