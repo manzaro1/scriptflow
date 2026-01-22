@@ -9,7 +9,7 @@ import ProductionStats from "@/components/ProductionStats";
 import OnboardingTour from "@/components/OnboardingTour";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Filter, Plus, SearchX, Loader2 } from 'lucide-react';
+import { Filter, SearchX, Loader2 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
@@ -28,19 +28,19 @@ const Index = () => {
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    const fetchScripts = async () => {
-      const { data, error } = await supabase
-        .from('scripts')
-        .select('*')
-        .order('updated_at', { ascending: false });
-      
-      if (!error && data) {
-        setScripts(data);
-      }
-      setLoading(false);
-    };
+  const fetchScripts = async () => {
+    const { data, error } = await supabase
+      .from('scripts')
+      .select('*')
+      .order('updated_at', { ascending: false });
+    
+    if (!error && data) {
+      setScripts(data);
+    }
+    setLoading(false);
+  };
 
+  useEffect(() => {
     fetchScripts();
   }, []);
 
@@ -53,6 +53,21 @@ const Index = () => {
       return matchesTab && matchesGenre && matchesSearch;
     });
   }, [scripts, activeTab, genreFilter, searchQuery]);
+
+  const stats = useMemo(() => {
+    const finished = scripts.filter(s => s.status === 'Final').length;
+    // Calculate total pages roughly from content length if available
+    const pages = scripts.reduce((acc, s) => {
+      const content = Array.isArray(s.content) ? s.content : [];
+      return acc + Math.max(1, Math.ceil(content.length / 15));
+    }, 0);
+
+    return {
+      total: scripts.length,
+      finished,
+      pages
+    };
+  }, [scripts]);
 
   const genres = ["all", ...new Set(scripts.map(s => s.genre))];
 
@@ -109,13 +124,17 @@ const Index = () => {
                 </DropdownMenu>
                 
                 <div className="tour-new-script">
-                  <NewScriptModal />
+                  <NewScriptModal onComplete={fetchScripts} />
                 </div>
               </div>
             </header>
 
             <div className="tour-stats">
-              <ProductionStats />
+              <ProductionStats 
+                totalScripts={stats.total} 
+                totalFinished={stats.finished} 
+                totalPages={stats.pages} 
+              />
             </div>
 
             <Tabs defaultValue="all" className="w-full tour-tabs" onValueChange={setActiveTab}>
@@ -137,7 +156,11 @@ const Index = () => {
                   {filteredScripts.map((script) => (
                     <ScriptCard 
                       key={script.id} 
-                      {...script} 
+                      id={script.id}
+                      title={script.title}
+                      author={script.author}
+                      status={script.status as any}
+                      genre={script.genre}
                       lastModified={new Date(script.updated_at).toLocaleDateString()}
                       onRename={handleRename}
                       onDelete={handleDelete}

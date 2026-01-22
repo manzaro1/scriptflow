@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Save, 
@@ -13,7 +14,8 @@ import {
   Share2,
   Info,
   Edit2,
-  Files
+  Files,
+  Loader2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +26,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showLoading, dismissToast, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 import CharacterProfileModal from "@/components/CharacterProfileModal";
 import CharacterChat from "@/components/CharacterChat";
 import ProductionOverseer from "@/components/ProductionOverseer";
@@ -44,34 +47,52 @@ interface ScriptBlock {
 }
 
 const ScriptEditor = () => {
+  const [searchParams] = useSearchParams();
+  const scriptId = searchParams.get('id');
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState<'comments' | 'ai' | null>(null);
   const [aiTab, setAiTab] = useState<string>("overseer");
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [isStoryboardOpen, setIsStoryboardOpen] = useState(false);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const [scriptTitle, setScriptTitle] = useState("The Neon Horizon");
-  const [scriptAuthor, setScriptAuthor] = useState("Alex Rivers");
   
-  const [blocks, setBlocks] = useState<ScriptBlock[]>([
-    { id: '1', type: 'slugline', content: 'EXT. SKYLINE - NIGHT' },
-    { id: '2', type: 'action', content: 'Rain hammers against the metallic skin of the city. Neon signs flicker in shades of bruised purple and electric cyan.' },
-    { id: '3', type: 'character', content: 'KAI' },
-    { id: '4', type: 'parenthetical', content: 'to himself' },
-    { id: '5', type: 'dialogue', content: "This wasn't part of the deal." },
-    { id: '6', type: 'action', content: 'Kai pulls a small, glowing COIL from his pocket. It pulses with a rhythmic, golden light.' },
-  ]);
+  const [scriptTitle, setScriptTitle] = useState("");
+  const [scriptAuthor, setScriptAuthor] = useState("");
+  const [blocks, setBlocks] = useState<ScriptBlock[]>([]);
   
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const pageCount = Math.max(1, Math.ceil(blocks.length / 15));
+  useEffect(() => {
+    const fetchScript = async () => {
+      if (!scriptId) return;
+      
+      const { data, error } = await supabase
+        .from('scripts')
+        .select('*')
+        .eq('id', scriptId)
+        .single();
+      
+      if (error) {
+        showError("Failed to load script");
+      } else if (data) {
+        setScriptTitle(data.title);
+        setScriptAuthor(data.author);
+        setBlocks(Array.isArray(data.content) ? data.content : []);
+      }
+      setLoading(false);
+    };
+
+    fetchScript();
+  }, [scriptId]);
 
   useEffect(() => {
     if (focusedBlockId && blockRefs.current[focusedBlockId]) {
       const element = blockRefs.current[focusedBlockId];
       element?.focus();
       
-      // Move cursor to the end of the content
       const range = document.createRange();
       const sel = window.getSelection();
       if (element?.childNodes.length) {
@@ -82,6 +103,31 @@ const ScriptEditor = () => {
       }
     }
   }, [focusedBlockId]);
+
+  const handleSave = async () => {
+    if (!scriptId) return;
+    setSaving(true);
+    const toastId = showLoading("Saving changes...");
+
+    const { error } = await supabase
+      .from('scripts')
+      .update({ 
+        content: blocks,
+        title: scriptTitle,
+        author: scriptAuthor,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', scriptId);
+
+    dismissToast(toastId);
+    setSaving(false);
+
+    if (error) {
+      showError("Save failed");
+    } else {
+      showSuccess("Script saved");
+    }
+  };
 
   const getNextBlockType = (currentType: ElementType): ElementType => {
     switch (currentType) {
@@ -116,7 +162,6 @@ const ScriptEditor = () => {
     if (e.key === 'Enter') {
       e.preventDefault();
       const nextType = getNextBlockType(block.type);
-
       const newId = Math.random().toString(36).substr(2, 9);
       const newBlocks = [...blocks];
       newBlocks.splice(index + 1, 0, { id: newId, type: nextType, content: '' });
@@ -140,12 +185,10 @@ const ScriptEditor = () => {
     const newBlocks = [...blocks];
     let type = newBlocks[index].type;
 
-    // Smart Type Detection based on content
     const upperContent = content.toUpperCase();
     if (upperContent.startsWith('INT.') || upperContent.startsWith('EXT.')) {
       type = 'slugline';
     } else if (content.length > 0 && content.length < 20 && content.toUpperCase() === content) {
-      // Heuristic for character name (short, all caps)
       type = 'character';
     } else if (content.startsWith('(') && content.endsWith(')')) {
       type = 'parenthetical';
@@ -155,28 +198,12 @@ const ScriptEditor = () => {
       type = 'action';
     }
 
-    // Auto-formatting for specific types
     if (type === 'slugline' || type === 'character') {
       content = content.toUpperCase();
     }
     
-    // Update block
     newBlocks[index] = { ...newBlocks[index], content, type };
     setBlocks(newBlocks);
-  };
-
-  const handleCharacterClick = (char: string) => {
-    setActiveCharChat(char);
-    setShowRightPanel('ai');
-    setAiTab('chat');
-  };
-
-  const handleExport = (format: 'pdf' | 'docx') => {
-    const toastId = showLoading(`Generating ${format.toUpperCase()}...`);
-    setTimeout(() => {
-      dismissToast(toastId);
-      showSuccess(`Script exported as ${format.toUpperCase()}`);
-    }, 1000);
   };
 
   const getBlockStyles = (type: ElementType) => {
@@ -192,24 +219,28 @@ const ScriptEditor = () => {
 
   const renderBlockContent = (block: ScriptBlock) => {
     if (block.type === 'parenthetical') {
-      // Remove existing parentheses for editing, but display them via CSS
       return block.content.replace(/^\(|\)$/g, '');
     }
     return block.content;
   };
 
-  // Helper to find the character name preceding a dialogue block
   const getCharacterForDialogue = (index: number): string => {
     for (let i = index - 1; i >= 0; i--) {
-      if (blocks[i].type === 'character') {
-        return blocks[i].content;
-      }
-      if (blocks[i].type === 'slugline' || blocks[i].type === 'action') {
-        break; // Stop searching if we hit a major scene element
-      }
+      if (blocks[i].type === 'character') return blocks[i].content;
+      if (blocks[i].type === 'slugline' || blocks[i].type === 'action') break;
     }
     return 'UNKNOWN';
   };
+
+  if (loading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  const pageCount = Math.max(1, Math.ceil(blocks.length / 15));
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground">
@@ -221,11 +252,11 @@ const ScriptEditor = () => {
           <div className="h-4 w-px bg-border" />
           <div className="flex flex-col group cursor-pointer" onClick={() => setIsRenameModalOpen(true)}>
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold">{scriptTitle}</span>
+              <span className="text-sm font-semibold">{scriptTitle || "Untitled"}</span>
               <Edit2 size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Draft 3</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Draft</span>
               {focusedBlockId && (
                 <Badge variant="outline" className="bg-primary/5 text-primary text-[9px] font-bold uppercase py-0 px-1.5 h-4 border-primary/20">
                   {blocks.find(b => b.id === focusedBlockId)?.type} Mode
@@ -236,9 +267,7 @@ const ScriptEditor = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden xl:flex items-center">
-            <CollaboratorStack />
-          </div>
+          <CollaboratorStack />
 
           <div className="hidden lg:flex items-center gap-1.5 px-3 h-8 bg-muted rounded-md border mr-2">
             <Files size={14} className="text-muted-foreground" />
@@ -248,7 +277,7 @@ const ScriptEditor = () => {
           <Button 
             variant="outline" 
             size="sm" 
-            className="gap-2 text-purple-600 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 hover:bg-purple-100 h-8"
+            className="gap-2 text-purple-600 border-purple-200 bg-purple-50 h-8"
             onClick={() => setIsStoryboardOpen(true)}
           >
             <Sparkles size={16} />
@@ -259,10 +288,7 @@ const ScriptEditor = () => {
             variant={showRightPanel === 'ai' ? 'secondary' : 'ghost'} 
             size="sm" 
             className="gap-2 h-8"
-            onClick={() => {
-              setShowRightPanel(showRightPanel === 'ai' ? null : 'ai');
-              setAiTab('overseer');
-            }}
+            onClick={() => setShowRightPanel(showRightPanel === 'ai' ? null : 'ai')}
           >
             <BrainCircuit size={16} />
             <span className="hidden sm:inline">Overseer</span>
@@ -275,27 +301,8 @@ const ScriptEditor = () => {
             </Button>
           </ShareScriptModal>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 h-8">
-                <Download size={16} />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2">
-                <FileDown size={14} className="text-red-500" />
-                Download as PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('docx')} className="gap-2">
-                <FileDown size={14} className="text-blue-500" />
-                Download as DOCX
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button size="sm" className="gap-2 h-8" onClick={() => showSuccess("Script saved successfully")}>
-            <Save size={16} />
+          <Button size="sm" className="gap-2 h-8" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             <span className="hidden sm:inline">Save</span>
           </Button>
         </div>
@@ -307,12 +314,8 @@ const ScriptEditor = () => {
           onOpenChange={setIsStoryboardOpen} 
           scriptBlocks={blocks}
           scriptTitle={scriptTitle}
+          scriptId={scriptId}
         />
-
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-background/80 backdrop-blur border px-3 py-1.5 rounded-full shadow-lg text-[10px] text-muted-foreground font-medium">
-          <Info size={12} className="text-primary" />
-          TAB to cycle • ENTER for smart transition • BACKSPACE to delete empty
-        </div>
 
         <aside className="w-64 border-r bg-background hidden lg:flex flex-col shrink-0">
           <div className="p-4 border-b">
@@ -329,39 +332,10 @@ const ScriptEditor = () => {
               ))}
             </div>
           </div>
-          <div className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Cast / DNA</h3>
-              <CharacterProfileModal />
-            </div>
-            <div className="flex flex-col gap-2">
-              {['KAI', 'SARA', 'VEO', 'DR. ARIS'].map(char => (
-                <button 
-                  key={char} 
-                  onClick={() => handleCharacterClick(char)}
-                  className={cn(
-                    "flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium border transition-all",
-                    activeCharChat === char && showRightPanel === 'ai' && aiTab === 'chat'
-                      ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' 
-                      : 'hover:bg-muted border-transparent'
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <UserCircle2 size={14} />
-                    {char}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </aside>
 
         <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-muted/30">
-          <div className="w-[850px] min-h-[1100px] bg-white dark:bg-slate-50 text-black shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight cursor-text relative">
-            <div className="absolute top-10 right-10 font-['Courier_Prime',Courier,monospace] text-[12pt]">
-              1.
-            </div>
-
+          <div className="w-[850px] min-h-[1100px] bg-white dark:bg-slate-50 text-black shadow-xl p-[80px] font-['Courier_Prime',monospace] text-[12pt] leading-tight cursor-text relative">
             <div className="text-center mb-12 uppercase">
               <h1 className="text-2xl font-bold outline-none focus:bg-primary/5 rounded px-2" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptTitle(e.currentTarget.innerText)}>{scriptTitle.toUpperCase()}</h1>
               <p className="mt-2 text-sm">Written by</p>
@@ -385,8 +359,7 @@ const ScriptEditor = () => {
                     <DialogueFeedback 
                       characterName={getCharacterForDialogue(index)}
                       dialogue={block.content}
-                      // Mock consistency score based on content length for demonstration
-                      consistencyScore={block.content.length > 20 ? 68 : 95} 
+                      consistencyScore={95} 
                     />
                   )}
                 </div>
@@ -395,32 +368,16 @@ const ScriptEditor = () => {
           </div>
         </main>
 
-        {showRightPanel && (
-          <aside className="w-80 border-l bg-background flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
+        {showRightPanel === 'ai' && (
+          <aside className="w-80 border-l bg-background flex flex-col shrink-0">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold text-sm">Production Intelligence</h3>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowRightPanel(null)}>
                 <X size={16} />
               </Button>
             </div>
-            
-            <div className="flex-1 overflow-hidden">
-              <Tabs value={aiTab} onValueChange={setAiTab} className="h-full flex flex-col">
-                <TabsList className="w-full justify-start rounded-none border-b bg-transparent h-10 px-4">
-                  <TabsTrigger value="overseer" className="text-xs h-8">Overseer</TabsTrigger>
-                  <TabsTrigger value="chat" className="text-xs h-8" disabled={!activeCharChat}>
-                    Actor Chat
-                  </TabsTrigger>
-                </TabsList>
-                <div className="flex-1 overflow-hidden">
-                  <TabsContent value="overseer" className="mt-0 h-full p-4 overflow-y-auto">
-                    <ProductionOverseer />
-                  </TabsContent>
-                  <TabsContent value="chat" className="mt-0 h-full p-4">
-                    {activeCharChat && <CharacterChat characterName={activeCharChat} />}
-                  </TabsContent>
-                </div>
-              </Tabs>
+            <div className="flex-1 overflow-y-auto p-4">
+              <ProductionOverseer />
             </div>
           </aside>
         )}

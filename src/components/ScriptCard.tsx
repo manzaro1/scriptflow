@@ -46,8 +46,9 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
   const statusColors = {
     'Draft': 'bg-yellow-100 text-yellow-800 border-yellow-200',
     'Final': 'bg-green-100 text-green-800 border-green-200',
-    'In Progress': 'bg-blue-100 text-blue-800 border-blue-200'
-  };
+    'In Progress': 'bg-blue-100 text-blue-800 border-blue-200',
+    'Archived': 'bg-gray-100 text-gray-800 border-gray-200'
+  } as any;
 
   const handleAction = (e: React.MouseEvent, action: string) => {
     e.stopPropagation();
@@ -56,6 +57,10 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
     } else {
       showSuccess(`${action}ing "${title}"...`);
     }
+  };
+
+  const navigateToEditor = () => {
+    navigate(`/editor?id=${id}`);
   };
 
   const navigateToCallSheet = (e: React.MouseEvent) => {
@@ -72,7 +77,7 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
     <>
       <Card 
         className="hover:shadow-md transition-shadow cursor-pointer group relative"
-        onClick={() => navigate('/editor')}
+        onClick={navigateToEditor}
       >
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start">
@@ -92,7 +97,7 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate('/editor')}>
+                <DropdownMenuItem onClick={navigateToEditor}>
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Open Editor
                 </DropdownMenuItem>
@@ -107,14 +112,6 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsRenameModalOpen(true); }}>
                   <Edit2 className="mr-2 h-4 w-4" />
                   Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => handleAction(e as any, 'Duplicating')}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => handleAction(e as any, 'Sharing')}>
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
@@ -131,7 +128,7 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
         <CardContent>
           <div className="flex gap-2 flex-wrap mb-4">
             <Badge variant="secondary" className="font-normal">{genre}</Badge>
-            <Badge className={`font-normal border ${statusColors[status]}`} variant="outline">
+            <Badge className={`font-normal border ${statusColors[status] || statusColors['In Progress']}`} variant="outline">
               {status}
             </Badge>
           </div>
@@ -140,28 +137,13 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
               <Calendar size={14} />
               <span>Modified {lastModified}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock size={14} />
-              <span>120 pages</span>
-            </div>
           </div>
         </CardContent>
-        <CardFooter className="pt-0 flex justify-between">
-          <div className="flex items-center text-xs text-muted-foreground">
-            <FileText size={12} className="mr-1" />
-            PDF, DOCX
-          </div>
+        <CardFooter className="pt-0 flex justify-end">
           <div className="flex gap-2">
-            <Button 
-              variant="link" 
-              size="sm" 
-              className="px-0 h-auto"
-              onClick={navigateToBreakdown}
-            >
-              Breakdown
-            </Button>
+            <Button variant="link" size="sm" className="px-0 h-auto" onClick={navigateToBreakdown}>Breakdown</Button>
             <span className="text-muted-foreground/30">•</span>
-            <Button variant="link" size="sm" className="px-0 h-auto">Editor</Button>
+            <Button variant="link" size="sm" className="px-0 h-auto" onClick={navigateToEditor}>Editor</Button>
           </div>
         </CardFooter>
       </Card>
