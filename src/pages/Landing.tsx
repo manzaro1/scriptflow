@@ -79,9 +79,6 @@ const Landing = () => {
                 {isAuthenticated ? 'Open Dashboard' : 'Start Writing for Free'}
                 <ArrowRight size={20} />
               </Button>
-              <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-bold">
-                Watch Demo
-              </Button>
             </div>
             <div className="flex items-center justify-center gap-8 pt-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
