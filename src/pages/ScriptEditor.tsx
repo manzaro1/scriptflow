@@ -50,7 +50,6 @@ const ScriptEditor = () => {
   const [scriptTitle, setScriptTitle] = useState("The Neon Horizon");
   const [scriptAuthor, setScriptAuthor] = useState("Alex Rivers");
   
-  // Block-based state management
   const [blocks, setBlocks] = useState<ScriptBlock[]>([
     { id: '1', type: 'slugline', content: 'EXT. SKYLINE - NIGHT' },
     { id: '2', type: 'action', content: 'Rain hammers against the metallic skin of the city. Neon signs flicker in shades of bruised purple and electric cyan.' },
@@ -63,7 +62,6 @@ const ScriptEditor = () => {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Roughly calculate pages based on blocks (standard 55 lines per page)
   const pageCount = Math.max(1, Math.ceil(blocks.length / 15));
 
   useEffect(() => {
@@ -160,8 +158,8 @@ const ScriptEditor = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#F9F9F9]">
-      <header className="h-14 border-b bg-white flex items-center px-4 justify-between shrink-0 z-10 shadow-sm">
+    <div className="h-screen flex flex-col bg-background text-foreground">
+      <header className="h-14 border-b bg-background flex items-center px-4 justify-between shrink-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
             <ArrowLeft size={20} />
@@ -184,7 +182,7 @@ const ScriptEditor = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden lg:flex items-center gap-1.5 px-3 h-8 bg-muted/50 rounded-md border mr-2">
+          <div className="hidden lg:flex items-center gap-1.5 px-3 h-8 bg-muted rounded-md border mr-2">
             <Files size={14} className="text-muted-foreground" />
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{pageCount} {pageCount === 1 ? 'Page' : 'Pages'}</span>
           </div>
@@ -192,7 +190,7 @@ const ScriptEditor = () => {
           <Button 
             variant="outline" 
             size="sm" 
-            className="gap-2 text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 h-8"
+            className="gap-2 text-purple-600 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 hover:bg-purple-100 h-8"
             onClick={() => setIsStoryboardOpen(true)}
           >
             <Sparkles size={16} />
@@ -253,12 +251,12 @@ const ScriptEditor = () => {
           scriptTitle={scriptTitle}
         />
 
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white/80 backdrop-blur border px-3 py-1.5 rounded-full shadow-lg text-[10px] text-muted-foreground font-medium">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-background/80 backdrop-blur border px-3 py-1.5 rounded-full shadow-lg text-[10px] text-muted-foreground font-medium">
           <Info size={12} className="text-primary" />
           TAB to cycle • ENTER for smart transition • BACKSPACE to delete empty
         </div>
 
-        <aside className="w-64 border-r bg-white hidden lg:flex flex-col shrink-0">
+        <aside className="w-64 border-r bg-background hidden lg:flex flex-col shrink-0">
           <div className="p-4 border-b">
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">Scene Navigator</h3>
             <div className="space-y-1">
@@ -286,7 +284,7 @@ const ScriptEditor = () => {
                   className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium border transition-all",
                     activeCharChat === char && showRightPanel === 'ai' && aiTab === 'chat'
-                      ? 'bg-purple-50 border-purple-200 text-purple-700' 
+                      ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' 
                       : 'hover:bg-muted border-transparent'
                   )}
                 >
@@ -300,9 +298,8 @@ const ScriptEditor = () => {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-gray-100">
-          <div className="w-[850px] min-h-[1100px] bg-white shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight cursor-text relative">
-            {/* Professional Page Numbering */}
+        <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-muted/30">
+          <div className="w-[850px] min-h-[1100px] bg-white dark:bg-slate-50 text-black shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight cursor-text relative">
             <div className="absolute top-10 right-10 font-['Courier_Prime',Courier,monospace] text-[12pt]">
               1.
             </div>
@@ -333,7 +330,7 @@ const ScriptEditor = () => {
         </main>
 
         {showRightPanel && (
-          <aside className="w-80 border-l bg-white flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
+          <aside className="w-80 border-l bg-background flex flex-col shrink-0 animate-in slide-in-from-right duration-200">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold text-sm">Production Intelligence</h3>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowRightPanel(null)}>
