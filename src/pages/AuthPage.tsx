@@ -39,9 +39,20 @@ const AuthPage = () => {
         <CardContent>
           <Auth
             supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
+            appearance={{ 
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: 'hsl(var(--primary))',
+                    brandAccent: 'hsl(var(--primary))',
+                  },
+                },
+              },
+            }}
             theme="light"
-            providers={[]}
+            providers={['google', 'github']}
+            redirectTo={window.location.origin + '/dashboard'}
           />
         </CardContent>
       </Card>
