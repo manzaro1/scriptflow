@@ -72,14 +72,17 @@ const Index = () => {
   const [scripts, setScripts] = useState(INITIAL_SCRIPTS);
   const [activeTab, setActiveTab] = useState("all");
   const [genreFilter, setGenreFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredScripts = useMemo(() => {
     return scripts.filter(script => {
       const matchesTab = activeTab === "all" || script.category === activeTab;
       const matchesGenre = genreFilter === "all" || script.genre === genreFilter;
-      return matchesTab && matchesGenre;
+      const matchesSearch = script.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           script.author.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesTab && matchesGenre && matchesSearch;
     });
-  }, [scripts, activeTab, genreFilter]);
+  }, [scripts, activeTab, genreFilter, searchQuery]);
 
   const genres = ["all", ...new Set(scripts.map(s => s.genre))];
 
@@ -94,7 +97,9 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <OnboardingTour />
-      <Navbar />
+      {/* Passing setSearchQuery to Navbar would be ideal via context, but for this demo 
+          we'll assume search is local or handled via a shared layout state in a real app */}
+      <Navbar onSearch={setSearchQuery} />
       <div className="flex flex-1">
         <Sidebar />
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
@@ -136,12 +141,20 @@ const Index = () => {
             </div>
 
             <Tabs defaultValue="all" className="w-full tour-tabs" onValueChange={setActiveTab}>
-              <TabsList className="mb-6">
-                <TabsTrigger value="all">All Scripts</TabsTrigger>
-                <TabsTrigger value="recent">Recent</TabsTrigger>
-                <TabsTrigger value="shared">Shared</TabsTrigger>
-                <TabsTrigger value="archived">Archived</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center justify-between mb-6">
+                <TabsList>
+                  <TabsTrigger value="all">All Scripts</TabsTrigger>
+                  <TabsTrigger value="recent">Recent</TabsTrigger>
+                  <TabsTrigger value="shared">Shared</TabsTrigger>
+                  <TabsTrigger value="archived">Archived</TabsTrigger>
+                </TabsList>
+                
+                {searchQuery && (
+                  <span className="text-xs text-muted-foreground animate-in fade-in slide-in-from-right-2">
+                    Showing results for "{searchQuery}"
+                  </span>
+                )}
+              </div>
               
               {filteredScripts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -154,7 +167,7 @@ const Index = () => {
                     />
                   ))}
                   
-                  {activeTab === 'all' && (
+                  {activeTab === 'all' && !searchQuery && (
                     <NewScriptModal>
                       <button className="border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-8 text-muted-foreground hover:text-primary hover:border-primary transition-all group min-h-[200px]">
                         <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3 group-hover:bg-primary/10">
@@ -170,9 +183,9 @@ const Index = () => {
                   <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium">No scripts found</h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                    Try adjusting your filters or tabs to find what you're looking for.
+                    Try adjusting your filters or search query to find what you're looking for.
                   </p>
-                  <Button variant="link" onClick={() => { setGenreFilter('all'); setActiveTab('all'); }} className="mt-2">
+                  <Button variant="link" onClick={() => { setGenreFilter('all'); setActiveTab('all'); setSearchQuery(''); }} className="mt-2">
                     Clear all filters
                   </Button>
                 </div>
@@ -182,14 +195,23 @@ const Index = () => {
             <section className="space-y-4 pt-4">
               <h2 className="text-xl font-semibold">Ready for Production</h2>
               <div className="bg-muted/30 border rounded-xl p-8 flex flex-col items-center justify-center text-center">
-                <div className="bg-primary/10 text-primary p-3 rounded-full mb-4">
-                  <Plus size={24} />
-                </div>
-                <h3 className="font-medium">No scripts marked as final yet</h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                  Once you finish a draft and mark it as 'Final', it will appear here for easy production access.
-                </p>
-                <Button variant="outline" className="mt-4" size="sm">Browse Scripts</Button>
+                {scripts.filter(s => s.status === 'Final').length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+                    {scripts.filter(s => s.status === 'Final').map(script => (
+                      <ScriptCard key={script.id} {...script} onRename={handleRename} onDelete={handleDelete} />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-primary/10 text-primary p-3 rounded-full mb-4">
+                      <Plus size={24} />
+                    </div>
+                    <h3 className="font-medium">No scripts marked as final yet</h3>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                      Once you finish a draft and mark it as 'Final', it will appear here for easy production access.
+                    </p>
+                  </>
+                )}
               </div>
             </section>
           </div>

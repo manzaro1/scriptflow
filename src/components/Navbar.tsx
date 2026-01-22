@@ -25,7 +25,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showSuccess } from "@/utils/toast";
 
-const Navbar = () => {
+interface NavbarProps {
+  onSearch?: (query: string) => void;
+}
+
+const Navbar = ({ onSearch }: NavbarProps) => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -73,8 +77,9 @@ const Navbar = () => {
         <div className="flex-1 flex items-center max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input 
-            placeholder="Search..." 
+            placeholder="Search scripts by title or author..." 
             className="pl-10 bg-muted/50 border-none focus-visible:ring-1 h-9 md:h-10"
+            onChange={(e) => onSearch?.(e.target.value)}
           />
         </div>
 
