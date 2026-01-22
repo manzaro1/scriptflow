@@ -51,7 +51,7 @@ const AuthPage = () => {
               },
             }}
             theme="light"
-            providers={['github']}
+            providers={['github', 'google']}
             redirectTo={window.location.origin + '/dashboard'}
           />
         </CardContent>
