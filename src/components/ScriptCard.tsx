@@ -57,6 +57,11 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
     }
   };
 
+  const navigateToCallSheet = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/call-sheet?script=${id}`);
+  };
+
   return (
     <>
       <Card 
@@ -85,7 +90,7 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Open Editor
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate(`/call-sheet?script=${id}`)}>
+                <DropdownMenuItem onClick={navigateToCallSheet}>
                   <ClipboardList className="mr-2 h-4 w-4" />
                   View Call Sheet
                 </DropdownMenuItem>
@@ -141,10 +146,7 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
               variant="link" 
               size="sm" 
               className="px-0 h-auto"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/call-sheet?script=${id}`);
-              }}
+              onClick={navigateToCallSheet}
             >
               Call Sheet
             </Button>

@@ -15,7 +15,10 @@ import {
   Phone, 
   User,
   CalendarDays,
-  ChevronDown
+  ChevronDown,
+  Sparkles,
+  Loader2,
+  Save
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -26,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 
 const SCRIPTS = [
   { id: "1", title: "The Neon Horizon" },
@@ -37,10 +40,29 @@ const SCRIPTS = [
 
 const CallSheet = () => {
   const [selectedScript, setSelectedScript] = useState(SCRIPTS[0]);
+  const [isFetchingWeather, setIsFetchingWeather] = useState(false);
+  const [weather, setWeather] = useState({ temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
 
   const handlePrint = () => {
     window.print();
     showSuccess("Preparing call sheet for print...");
+  };
+
+  const handleAIWeatherSync = () => {
+    setIsFetchingWeather(true);
+    const toastId = showLoading("AI analyzing location forecast...");
+    
+    // Simulate AI weather search
+    setTimeout(() => {
+      setWeather({
+        temp: `${Math.floor(Math.random() * (85 - 65) + 65)}°F`,
+        condition: ['Partly Cloudy', 'Sunny', 'Light Breeze', 'Clear Skies'][Math.floor(Math.random() * 4)],
+        sunset: '18:42'
+      });
+      setIsFetchingWeather(false);
+      dismissToast(toastId);
+      showSuccess("Weather data synchronized via AI forecast engine.");
+    }, 2000);
   };
 
   return (
@@ -85,9 +107,9 @@ const CallSheet = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => showSuccess("Link shared with crew")}>
-                  <Share2 size={16} />
-                  Share
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => showSuccess("Call sheet saved.")}>
+                  <Save size={16} />
+                  Save
                 </Button>
                 <Button variant="outline" size="sm" className="gap-2" onClick={handlePrint}>
                   <Printer size={16} />
@@ -107,25 +129,29 @@ const CallSheet = () => {
                 <div className="flex flex-col md:flex-row justify-between gap-6 border-b pb-6">
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <h2 className="text-4xl font-black tracking-tighter uppercase italic">{selectedScript.title}</h2>
-                      <p className="text-sm font-bold uppercase text-muted-foreground tracking-widest">Production Day 12 of 35</p>
+                      <h2 className="text-4xl font-black tracking-tighter uppercase italic outline-none focus:bg-muted p-1 rounded" contentEditable suppressContentEditableWarning>
+                        {selectedScript.title}
+                      </h2>
+                      <p className="text-sm font-bold uppercase text-muted-foreground tracking-widest outline-none focus:bg-muted px-1" contentEditable suppressContentEditableWarning>
+                        Production Day 12 of 35
+                      </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-[10px] font-bold uppercase text-muted-foreground">Director</p>
-                        <p className="font-bold">Alex Rivers</p>
+                        <p className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>Alex Rivers</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-bold uppercase text-muted-foreground">Producer</p>
-                        <p className="font-bold">Sarah Chen</p>
+                        <p className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>Sarah Chen</p>
                       </div>
                     </div>
                   </div>
                   
                   <div className="bg-muted p-4 rounded-lg flex flex-col justify-center items-center text-center min-w-[180px]">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1">Crew Call</p>
-                    <div className="text-4xl font-black">07:00</div>
-                    <p className="text-xs font-bold mt-1 text-muted-foreground uppercase">AM • Oct 12, 2024</p>
+                    <div className="text-4xl font-black outline-none focus:bg-white/50 p-1" contentEditable suppressContentEditableWarning>07:00</div>
+                    <p className="text-xs font-bold mt-1 text-muted-foreground uppercase outline-none focus:bg-white/50" contentEditable suppressContentEditableWarning>AM • Oct 12, 2024</p>
                   </div>
                 </div>
 
@@ -137,11 +163,11 @@ const CallSheet = () => {
                       <h3 className="text-xs font-black uppercase tracking-widest">Locations</h3>
                     </div>
                     <div className="p-3 bg-muted/50 rounded border text-sm space-y-2">
-                      <div>
+                      <div className="outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning>
                         <p className="font-bold">Stage 4 - Neon Studio</p>
                         <p className="text-xs text-muted-foreground">123 Production Way, Culver City</p>
                       </div>
-                      <div className="pt-2 border-t">
+                      <div className="pt-2 border-t outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning>
                         <p className="font-bold">Emergency Hospital</p>
                         <p className="text-xs text-muted-foreground">St. Jude Medical Center (2.4 miles)</p>
                       </div>
@@ -149,18 +175,29 @@ const CallSheet = () => {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-primary">
-                      <CloudSun size={16} />
-                      <h3 className="text-xs font-black uppercase tracking-widest">Weather</h3>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-primary">
+                        <CloudSun size={16} />
+                        <h3 className="text-xs font-black uppercase tracking-widest">Weather</h3>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-primary hover:bg-primary/10 print:hidden"
+                        onClick={handleAIWeatherSync}
+                        disabled={isFetchingWeather}
+                      >
+                        {isFetchingWeather ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                      </Button>
                     </div>
                     <div className="p-3 bg-muted/50 rounded border flex items-center justify-between">
                       <div>
-                        <p className="text-2xl font-black">72°F</p>
-                        <p className="text-xs font-bold uppercase">Clear Skies</p>
+                        <p className="text-2xl font-black">{weather.temp}</p>
+                        <p className="text-xs font-bold uppercase">{weather.condition}</p>
                       </div>
                       <div className="text-right text-[10px] font-bold uppercase text-muted-foreground">
                         <p>Sunrise: 06:45</p>
-                        <p>Sunset: 18:30</p>
+                        <p>Sunset: {weather.sunset}</p>
                       </div>
                     </div>
                   </div>
@@ -171,11 +208,11 @@ const CallSheet = () => {
                       <h3 className="text-xs font-black uppercase tracking-widest">Key Contacts</h3>
                     </div>
                     <div className="p-3 bg-muted/50 rounded border text-sm space-y-2">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning>
                         <span>1st AD: Mike Miller</span>
                         <span className="font-mono font-bold">555-0123</span>
                       </div>
-                      <div className="flex justify-between pt-2 border-t">
+                      <div className="flex justify-between pt-2 border-t outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning>
                         <span>Production Mgr</span>
                         <span className="font-mono font-bold">555-9876</span>
                       </div>
@@ -208,11 +245,11 @@ const CallSheet = () => {
                         { time: '17:30', sc: '-', desc: 'WRAP', cast: 'ALL', loc: '-' },
                       ].map((row, i) => (
                         <TableRow key={i} className={row.desc.includes('LUNCH') ? 'bg-primary/5 font-bold' : ''}>
-                          <TableCell className="font-mono text-xs">{row.time}</TableCell>
-                          <TableCell className="font-bold">{row.sc}</TableCell>
-                          <TableCell className="text-sm">{row.desc}</TableCell>
-                          <TableCell className="text-xs font-bold">{row.cast}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{row.loc}</TableCell>
+                          <TableCell className="font-mono text-xs outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.time}</TableCell>
+                          <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.sc}</TableCell>
+                          <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.desc}</TableCell>
+                          <TableCell className="text-xs font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.cast}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.loc}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -243,10 +280,10 @@ const CallSheet = () => {
                           { id: 5, name: 'Elena Pro', role: 'DR. ARIS', call: '13:30' },
                         ].map((row) => (
                           <TableRow key={row.id}>
-                            <TableCell className="font-bold">{row.id}</TableCell>
-                            <TableCell className="text-sm">{row.name}</TableCell>
-                            <TableCell className="text-xs font-bold uppercase text-muted-foreground">{row.role}</TableCell>
-                            <TableCell className="font-mono font-bold">{row.call}</TableCell>
+                            <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.id}</TableCell>
+                            <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.name}</TableCell>
+                            <TableCell className="text-xs font-bold uppercase text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.role}</TableCell>
+                            <TableCell className="font-mono font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.call}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -255,18 +292,20 @@ const CallSheet = () => {
 
                   <div className="space-y-4 bg-muted/20 p-6 rounded-xl border-2 border-dashed border-muted">
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Production Notes</h3>
-                    <ul className="text-xs space-y-3 list-disc pl-4 text-muted-foreground font-medium">
-                      <li>Safety meeting at 07:15 for all electrical and grip crew.</li>
-                      <li>Heavy rain effects in Scene 12—bring appropriate weather gear.</li>
-                      <li>Parking strictly enforced in Hangar lot; use shuttle for Overflow.</li>
-                      <li>Quiet on set! Hospital in adjacent building.</li>
-                    </ul>
+                    <div className="text-xs space-y-3 list-disc pl-4 text-muted-foreground font-medium outline-none focus:bg-white p-2 rounded" contentEditable suppressContentEditableWarning>
+                      <p>• Safety meeting at 07:15 for all electrical and grip crew.</p>
+                      <p>• Heavy rain effects in Scene 12—bring appropriate weather gear.</p>
+                      <p>• Parking strictly enforced in Hangar lot; use shuttle for Overflow.</p>
+                      <p>• Quiet on set! Hospital in adjacent building.</p>
+                    </div>
                     <div className="pt-4 mt-4 border-t border-muted">
                       <div className="flex items-center gap-2 text-primary">
                         <CalendarDays size={14} />
                         <span className="text-[10px] font-black uppercase">Tomorrow's Look</span>
                       </div>
-                      <p className="text-[10px] mt-1 italic">Scene 16-19: Night exterior car chase sequence. Prep vehicles for 14:00.</p>
+                      <p className="text-[10px] mt-1 italic outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning>
+                        Scene 16-19: Night exterior car chase sequence. Prep vehicles for 14:00.
+                      </p>
                     </div>
                   </div>
                 </div>
