@@ -21,6 +21,11 @@ const AuthPage = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Determine the absolute redirect URL
+  const absoluteRedirectTo = typeof window !== 'undefined' 
+    ? window.location.origin + '/dashboard' 
+    : undefined;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md shadow-2xl">
@@ -52,7 +57,7 @@ const AuthPage = () => {
             }}
             theme="light"
             providers={['github', 'google']}
-            redirectTo={window.location.origin + '/dashboard'}
+            redirectTo={absoluteRedirectTo}
           />
         </CardContent>
       </Card>
