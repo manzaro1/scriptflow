@@ -6,6 +6,7 @@ import { Film, Search, Bell, User, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import NewScriptModal from "./NewScriptModal";
+import { ModeToggle } from "./ModeToggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +41,8 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-4 ml-auto">
+          <ModeToggle />
+          
           <Button variant="ghost" size="icon">
             <Bell size={20} />
           </Button>
