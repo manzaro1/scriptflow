@@ -69,6 +69,7 @@ const ScriptEditor = () => {
       const element = blockRefs.current[focusedBlockId];
       element?.focus();
       
+      // Move cursor to the end of the content
       const range = document.createRange();
       const sel = window.getSelection();
       if (element?.childNodes.length) {
@@ -80,13 +81,30 @@ const ScriptEditor = () => {
     }
   }, [focusedBlockId]);
 
+  const getNextBlockType = (currentType: ElementType): ElementType => {
+    switch (currentType) {
+      case 'slugline':
+      case 'action':
+        return 'character';
+      case 'character':
+        return 'dialogue';
+      case 'dialogue':
+      case 'parenthetical':
+        return 'action';
+      default:
+        return 'action';
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     const block = blocks[index];
 
     if (e.key === 'Tab') {
       e.preventDefault();
       const types: ElementType[] = ['action', 'character', 'parenthetical', 'dialogue', 'slugline'];
-      const nextType = types[(types.indexOf(block.type) + 1) % types.length];
+      const currentIndex = types.indexOf(block.type);
+      const nextType = types[(currentIndex + 1) % types.length];
+      
       const newBlocks = [...blocks];
       newBlocks[index] = { ...block, type: nextType };
       setBlocks(newBlocks);
@@ -95,18 +113,14 @@ const ScriptEditor = () => {
 
     if (e.key === 'Enter') {
       e.preventDefault();
-      let nextType: ElementType = 'action';
-      
-      if (block.type === 'slugline') nextType = 'action';
-      else if (block.type === 'character') nextType = 'dialogue';
-      else if (block.type === 'dialogue') nextType = 'action';
-      else if (block.type === 'parenthetical') nextType = 'dialogue';
+      const nextType = getNextBlockType(block.type);
 
       const newId = Math.random().toString(36).substr(2, 9);
       const newBlocks = [...blocks];
       newBlocks.splice(index + 1, 0, { id: newId, type: nextType, content: '' });
       setBlocks(newBlocks);
       setFocusedBlockId(newId);
+      return;
     }
 
     if (e.key === 'Backspace' && block.content === '' && blocks.length > 1) {
@@ -115,19 +129,36 @@ const ScriptEditor = () => {
       const newBlocks = blocks.filter((_, i) => i !== index);
       setBlocks(newBlocks);
       if (prevBlockId) setFocusedBlockId(prevBlockId);
+      return;
     }
   };
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>, index: number) => {
-    const content = e.currentTarget.innerText;
+    let content = e.currentTarget.innerText;
     const newBlocks = [...blocks];
     let type = newBlocks[index].type;
 
+    // Smart Type Detection based on content
     const upperContent = content.toUpperCase();
     if (upperContent.startsWith('INT.') || upperContent.startsWith('EXT.')) {
       type = 'slugline';
+    } else if (content.length > 0 && content.length < 20 && content.toUpperCase() === content) {
+      // Heuristic for character name (short, all caps)
+      type = 'character';
+    } else if (content.startsWith('(') && content.endsWith(')')) {
+      type = 'parenthetical';
+    } else if (newBlocks[index - 1]?.type === 'character' || newBlocks[index - 1]?.type === 'parenthetical') {
+      type = 'dialogue';
+    } else if (type !== 'slugline' && type !== 'character' && type !== 'parenthetical' && type !== 'dialogue') {
+      type = 'action';
     }
 
+    // Auto-formatting for specific types
+    if (type === 'slugline' || type === 'character') {
+      content = content.toUpperCase();
+    }
+    
+    // Update block
     newBlocks[index] = { ...newBlocks[index], content, type };
     setBlocks(newBlocks);
   };
@@ -147,7 +178,7 @@ const ScriptEditor = () => {
   };
 
   const getBlockStyles = (type: ElementType) => {
-    const base = "outline-none transition-all duration-150 min-h-[1.5em] focus:bg-primary/5 rounded px-1";
+    const base = "outline-none transition-all duration-150 min-h-[1.5em] focus:bg-primary/5 rounded px-1 whitespace-pre-wrap";
     switch (type) {
       case 'character': return cn(base, "text-center uppercase font-bold w-[50%] mx-auto mb-1 mt-6");
       case 'dialogue': return cn(base, "text-center w-[65%] mx-auto mb-4");
@@ -155,6 +186,14 @@ const ScriptEditor = () => {
       case 'slugline': return cn(base, "uppercase font-bold mb-4 mt-8");
       default: return cn(base, "mb-4 text-left");
     }
+  };
+
+  const renderBlockContent = (block: ScriptBlock) => {
+    if (block.type === 'parenthetical') {
+      // Remove existing parentheses for editing, but display them via CSS
+      return block.content.replace(/^\(|\)$/g, '');
+    }
+    return block.content;
   };
 
   return (
@@ -322,7 +361,7 @@ const ScriptEditor = () => {
                   onInput={(e) => handleInput(e, index)}
                   onFocus={() => setFocusedBlockId(block.id)}
                 >
-                  {block.content}
+                  {renderBlockContent(block)}
                 </div>
               ))}
             </div>
