@@ -1,10 +1,9 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Printer, 
@@ -15,12 +14,30 @@ import {
   CloudSun, 
   Phone, 
   User,
-  CalendarDays
+  CalendarDays,
+  ChevronDown
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { showSuccess } from "@/utils/toast";
 
+const SCRIPTS = [
+  { id: "1", title: "The Neon Horizon" },
+  { id: "2", title: "Silent Echoes" },
+  { id: "3", title: "Midnight in Paris" },
+  { id: "5", title: "The Last Heist" }
+];
+
 const CallSheet = () => {
+  const [selectedScript, setSelectedScript] = useState(SCRIPTS[0]);
+
   const handlePrint = () => {
     window.print();
     showSuccess("Preparing call sheet for print...");
@@ -35,12 +52,37 @@ const CallSheet = () => {
         <div className="print:hidden">
           <Sidebar />
         </div>
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-muted/30 print:bg-white print:p-0">
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto print:bg-white print:p-0">
           <div className="max-w-5xl mx-auto space-y-6">
-            <header className="flex justify-between items-center print:hidden">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Call Sheets</h1>
-                <p className="text-muted-foreground mt-1">Daily production schedules and crew requirements.</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Script:</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2 font-bold h-7">
+                        {selectedScript.title}
+                        <ChevronDown size={14} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuLabel>Select Project</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {SCRIPTS.map(script => (
+                        <DropdownMenuItem 
+                          key={script.id} 
+                          onClick={() => {
+                            setSelectedScript(script);
+                            showSuccess(`Call sheet loaded for "${script.title}"`);
+                          }}
+                        >
+                          {script.title}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="gap-2" onClick={() => showSuccess("Link shared with crew")}>
@@ -65,7 +107,7 @@ const CallSheet = () => {
                 <div className="flex flex-col md:flex-row justify-between gap-6 border-b pb-6">
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <h2 className="text-4xl font-black tracking-tighter uppercase italic">The Neon Horizon</h2>
+                      <h2 className="text-4xl font-black tracking-tighter uppercase italic">{selectedScript.title}</h2>
                       <p className="text-sm font-bold uppercase text-muted-foreground tracking-widest">Production Day 12 of 35</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">

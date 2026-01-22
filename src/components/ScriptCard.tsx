@@ -13,7 +13,8 @@ import {
   Copy, 
   Share2,
   ExternalLink,
-  Edit2
+  Edit2,
+  ClipboardList
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -84,6 +85,10 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Open Editor
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/call-sheet?script=${id}`)}>
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                  View Call Sheet
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsRenameModalOpen(true); }}>
                   <Edit2 className="mr-2 h-4 w-4" />
                   Rename
@@ -131,7 +136,21 @@ const ScriptCard = ({ id, title, author, status, lastModified, genre, onRename, 
             <FileText size={12} className="mr-1" />
             PDF, DOCX
           </div>
-          <Button variant="link" size="sm" className="px-0 h-auto">Open Editor</Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="px-0 h-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/call-sheet?script=${id}`);
+              }}
+            >
+              Call Sheet
+            </Button>
+            <span className="text-muted-foreground/30">•</span>
+            <Button variant="link" size="sm" className="px-0 h-auto">Editor</Button>
+          </div>
         </CardFooter>
       </Card>
 
