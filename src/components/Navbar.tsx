@@ -24,9 +24,9 @@ const Navbar = () => {
       <div className="flex h-16 items-center px-6 gap-4">
         <div 
           className="flex items-center gap-2 font-bold text-xl mr-8 cursor-pointer" 
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/dashboard')}
         >
-          <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
+          <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-lg">
             <Film size={20} />
           </div>
           <span>ScriptFlow</span>
@@ -60,7 +60,7 @@ const Navbar = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
-                  <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center border overflow-hidden">
+                  <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center border overflow-hidden shadow-sm">
                     <User size={18} className="text-secondary-foreground" />
                   </div>
                 </Button>
@@ -78,7 +78,7 @@ const Navbar = () => {
                   Team Management
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
+                <DropdownMenuItem className="text-destructive" onClick={() => navigate('/')}>
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>

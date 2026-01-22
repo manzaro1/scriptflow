@@ -20,12 +20,12 @@ const Sidebar = () => {
   const location = useLocation();
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: FileText, label: 'My Scripts', path: '/' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: FileText, label: 'My Scripts', path: '/dashboard' },
     { icon: ClipboardList, label: 'Call Sheets', path: '/call-sheet' },
-    { icon: Star, label: 'Favorites', path: '/' },
+    { icon: Star, label: 'Favorites', path: '/dashboard' },
     { icon: Users, label: 'Collaborations', path: '/profile' },
-    { icon: FolderOpen, label: 'Projects', path: '/' },
+    { icon: FolderOpen, label: 'Projects', path: '/dashboard' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -54,14 +54,14 @@ const Sidebar = () => {
       <div className="space-y-1">
         <p className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Library</p>
         <button 
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/dashboard')}
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <Clock size={18} />
           Recent
         </button>
         <button 
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/dashboard')}
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <Archive size={18} />
