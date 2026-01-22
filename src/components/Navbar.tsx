@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import NewScriptModal from "./NewScriptModal";
 import { ModeToggle } from "./ModeToggle";
 import SidebarContent from "./SidebarContent";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
   SheetContent,
@@ -23,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
 
 interface NavbarProps {
   onSearch?: (query: string) => void;
@@ -33,10 +34,17 @@ const Navbar = ({ onSearch }: NavbarProps) => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    showSuccess("Logged out successfully");
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      localStorage.removeItem('isAuthenticated');
+      showSuccess("Logged out successfully");
+      navigate('/');
+    } catch (error: any) {
+      showError(error.message || "Failed to log out");
+    }
   };
 
   return (
