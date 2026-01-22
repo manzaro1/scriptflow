@@ -90,14 +90,18 @@ const Landing = () => {
                   <div className="w-3 h-3 rounded-full bg-yellow-400" />
                   <div className="w-3 h-3 rounded-full bg-green-400" />
                 </div>
-                <div className="mx-auto bg-background px-4 py-1 rounded text-[10px] font-mono text-muted-foreground">scriptflow.app/editor/neon-horizon</div>
+                <div className="mx-auto bg-background px-4 py-1 rounded text-[10px] font-mono text-muted-foreground">scriptflow.app/editor/the-final-blueprints</div>
               </div>
               <div className="p-12 font-['Courier_Prime',monospace] text-slate-800 dark:text-slate-200">
-                <p className="uppercase font-bold mb-8">EXT. SKYLINE - NIGHT</p>
-                <p className="mb-4">Rain hammers against the metallic skin of the city. Neon signs flicker in shades of bruised purple and electric cyan.</p>
-                <div className="text-center w-[50%] mx-auto mb-1 mt-6 font-bold">KAI</div>
-                <p className="text-center w-[65%] mx-auto mb-4">This wasn't part of the deal. We had an agreement.</p>
-                <p className="mb-4">Kai pulls a small, glowing COIL from his pocket. It pulses with a rhythmic, golden light.</p>
+                <p className="uppercase font-bold mb-8">EXT. ABANDONED OBSERVATORY - DAWN</p>
+                <p className="mb-4">Snow drifts through the shattered dome. Below, the sirens of the Search Teams wail, closer than before.</p>
+                <div className="text-center w-[50%] mx-auto mb-1 mt-6 font-bold">ELARA</div>
+                <p className="text-center w-[65%] mx-auto mb-1 italic text-sm">(breathless)</p>
+                <p className="text-center w-[65%] mx-auto mb-4">Go, Jax. They’re nearly at the perimeter. Save yourself.</p>
+                <p className="mb-4">Jax reaches out, his hand trembling as he brushes a stray lock of hair from her face. His eyes are fierce, desperate.</p>
+                <div className="text-center w-[50%] mx-auto mb-1 mt-6 font-bold">JAX</div>
+                <p className="text-center w-[65%] mx-auto mb-4">I didn't come back for the blueprints, Elara. I came back for you.</p>
+                <p className="mb-4">He pulls a silver locket from his tactical vest—the one thing he was supposed to leave behind.</p>
               </div>
               {/* Floating AI UI overlay */}
               <div className="absolute right-8 top-32 w-64 bg-background/95 backdrop-blur border rounded-xl shadow-2xl p-4 space-y-3 animate-bounce-subtle">
@@ -106,10 +110,10 @@ const Landing = () => {
                   AI Intelligence
                 </div>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  "KAI's dialogue in this scene is 92% consistent with established Persona DNA. Suggesting more aggressive tone for Scene 14."
+                  "JAX's dialogue in this scene is 98% consistent with the 'Selfless Protector' DNA. Strong emotional payoff detected in the final act."
                 </p>
                 <div className="h-1 bg-primary/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary w-[92%]" />
+                  <div className="h-full bg-primary w-[98%]" />
                 </div>
               </div>
             </div>
