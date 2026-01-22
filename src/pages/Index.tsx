@@ -20,8 +20,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const ALL_SCRIPTS = [
+const INITIAL_SCRIPTS = [
   {
+    id: "1",
     title: "The Neon Horizon",
     author: "Alex Rivers",
     status: "In Progress" as const,
@@ -30,6 +31,7 @@ const ALL_SCRIPTS = [
     category: "recent"
   },
   {
+    id: "2",
     title: "Silent Echoes",
     author: "Alex Rivers",
     status: "Draft" as const,
@@ -38,6 +40,7 @@ const ALL_SCRIPTS = [
     category: "recent"
   },
   {
+    id: "3",
     title: "Midnight in Paris",
     author: "Sarah Chen",
     status: "Final" as const,
@@ -46,6 +49,7 @@ const ALL_SCRIPTS = [
     category: "shared"
   },
   {
+    id: "4",
     title: "Deep Space 9",
     author: "Alex Rivers",
     status: "Draft" as const,
@@ -54,6 +58,7 @@ const ALL_SCRIPTS = [
     category: "archived"
   },
   {
+    id: "5",
     title: "The Last Heist",
     author: "John Doe",
     status: "In Progress" as const,
@@ -64,18 +69,27 @@ const ALL_SCRIPTS = [
 ];
 
 const Index = () => {
+  const [scripts, setScripts] = useState(INITIAL_SCRIPTS);
   const [activeTab, setActiveTab] = useState("all");
   const [genreFilter, setGenreFilter] = useState("all");
 
   const filteredScripts = useMemo(() => {
-    return ALL_SCRIPTS.filter(script => {
+    return scripts.filter(script => {
       const matchesTab = activeTab === "all" || script.category === activeTab;
       const matchesGenre = genreFilter === "all" || script.genre === genreFilter;
       return matchesTab && matchesGenre;
     });
-  }, [activeTab, genreFilter]);
+  }, [scripts, activeTab, genreFilter]);
 
-  const genres = ["all", ...new Set(ALL_SCRIPTS.map(s => s.genre))];
+  const genres = ["all", ...new Set(scripts.map(s => s.genre))];
+
+  const handleRename = (id: string, newTitle: string) => {
+    setScripts(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
+  };
+
+  const handleDelete = (id: string) => {
+    setScripts(prev => prev.filter(s => s.id !== id));
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -131,8 +145,13 @@ const Index = () => {
               
               {filteredScripts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredScripts.map((script, index) => (
-                    <ScriptCard key={index} {...script} />
+                  {filteredScripts.map((script) => (
+                    <ScriptCard 
+                      key={script.id} 
+                      {...script} 
+                      onRename={handleRename}
+                      onDelete={handleDelete}
+                    />
                   ))}
                   
                   {activeTab === 'all' && (

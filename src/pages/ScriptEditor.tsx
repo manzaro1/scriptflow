@@ -12,7 +12,7 @@ import {
   UserCircle2,
   Share2,
   Info,
-  Layout
+  Edit2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ import CharacterChat from "@/components/CharacterChat";
 import ProductionOverseer from "@/components/ProductionOverseer";
 import ShareScriptModal from "@/components/ShareScriptModal";
 import StoryboardGenerator from "@/components/StoryboardGenerator";
+import RenameScriptModal from "@/components/RenameScriptModal";
 import { cn } from "@/lib/utils";
 
 type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
@@ -44,7 +45,8 @@ const ScriptEditor = () => {
   const [aiTab, setAiTab] = useState<string>("overseer");
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [isStoryboardOpen, setIsStoryboardOpen] = useState(false);
-  const scriptTitle = "The Neon Horizon";
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [scriptTitle, setScriptTitle] = useState("The Neon Horizon");
   
   // Block-based state management
   const [blocks, setBlocks] = useState<ScriptBlock[]>([
@@ -160,8 +162,11 @@ const ScriptEditor = () => {
             <ArrowLeft size={20} />
           </Button>
           <div className="h-4 w-px bg-border" />
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">{scriptTitle}</span>
+          <div className="flex flex-col group cursor-pointer" onClick={() => setIsRenameModalOpen(true)}>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold">{scriptTitle}</span>
+              <Edit2 size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Draft 3</span>
               {focusedBlockId && (
@@ -342,6 +347,13 @@ const ScriptEditor = () => {
           </aside>
         )}
       </div>
+
+      <RenameScriptModal 
+        isOpen={isRenameModalOpen}
+        onOpenChange={setIsRenameModalOpen}
+        currentTitle={scriptTitle}
+        onRename={setScriptTitle}
+      />
     </div>
   );
 };
