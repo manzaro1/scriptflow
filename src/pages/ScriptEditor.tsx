@@ -47,6 +47,7 @@ const ScriptEditor = () => {
   const [isStoryboardOpen, setIsStoryboardOpen] = useState(false);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [scriptTitle, setScriptTitle] = useState("The Neon Horizon");
+  const [scriptAuthor, setScriptAuthor] = useState("Alex Rivers");
   
   // Block-based state management
   const [blocks, setBlocks] = useState<ScriptBlock[]>([
@@ -293,9 +294,9 @@ const ScriptEditor = () => {
         <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-gray-100">
           <div className="w-[850px] min-h-[1100px] bg-white shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight cursor-text">
             <div className="text-center mb-12 uppercase">
-              <h1 className="text-2xl font-bold">{scriptTitle.toUpperCase()}</h1>
+              <h1 className="text-2xl font-bold outline-none focus:bg-primary/5 rounded px-2" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptTitle(e.currentTarget.innerText)}>{scriptTitle.toUpperCase()}</h1>
               <p className="mt-2 text-sm">Written by</p>
-              <p className="mt-1">Alex Rivers</p>
+              <p className="mt-1 outline-none focus:bg-primary/5 rounded px-2 min-w-[100px] inline-block" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptAuthor(e.currentTarget.innerText)}>{scriptAuthor}</p>
             </div>
 
             <div className="space-y-0">

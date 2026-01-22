@@ -6,8 +6,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogDescription,
-  DialogFooter,
+  DialogDescription, 
+  DialogFooter, 
   DialogTrigger
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,10 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
   const [creationMode, setCreationMode] = useState<'scratch' | 'upload'>('scratch');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [characters, setCharacters] = useState<any[]>([]);
+  
+  // Script form state
+  const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState('Alex Rivers');
   
   // Character form state
   const [charName, setCharName] = useState('');
@@ -62,13 +66,14 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
   const handleCreate = () => {
     const message = creationMode === 'upload' 
       ? `Script imported from "${uploadedFile?.name}" with AI character profiles synchronized.`
-      : "Script created with AI character profiles synchronized.";
+      : `Script "${title}" by ${author} created successfully.`;
     
     showSuccess(message);
     setIsOpen(false);
     setStep(1);
     setCharacters([]);
     setUploadedFile(null);
+    setTitle('');
   };
 
   return (
@@ -122,7 +127,21 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
               <TabsContent value="scratch" className="space-y-4 pt-0">
                 <div className="grid gap-2">
                   <Label htmlFor="title">Title</Label>
-                  <Input id="title" placeholder="Untitled Screenplay" />
+                  <Input 
+                    id="title" 
+                    placeholder="Untitled Screenplay" 
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="author">Author</Label>
+                  <Input 
+                    id="author" 
+                    placeholder="Your Name" 
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
@@ -242,7 +261,7 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
               <Button 
                 onClick={() => setStep(2)} 
                 className="gap-2"
-                disabled={creationMode === 'upload' && !uploadedFile}
+                disabled={creationMode === 'scratch' && (!title || !author)}
               >
                 Next: Add Characters
                 <ArrowRight size={16} />
