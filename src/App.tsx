@@ -9,6 +9,10 @@ import Index from "./pages/Index";
 import ScriptEditor from "./pages/ScriptEditor";
 import Profile from "./pages/Profile";
 import CallSheet from "./pages/CallSheet";
+import AboutUs from "./pages/AboutUs";
+import Careers from "./pages/Careers";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +30,10 @@ const App = () => (
             <Route path="/editor" element={<ScriptEditor />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/call-sheet" element={<CallSheet />} />
+            <Route path="/about-us" element={<AboutUs />} />
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

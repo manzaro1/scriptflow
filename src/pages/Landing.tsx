@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   Film, 
   Sparkles, 
@@ -282,19 +282,19 @@ const Landing = () => {
           <div className="space-y-4">
             <h4 className="font-bold text-sm">Product</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">Editor</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">AI Storyboard</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Call Sheets</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Pricing</a></li>
+              <li><Link to="/editor" className="hover:text-primary transition-colors">Editor</Link></li>
+              <li><button onClick={() => navigate('/editor')} className="hover:text-primary transition-colors">AI Storyboard</button></li>
+              <li><Link to="/call-sheet" className="hover:text-primary transition-colors">Call Sheets</Link></li>
+              <li><a href="#pricing" className="hover:text-primary transition-colors">Pricing</a></li>
             </ul>
           </div>
           <div className="space-y-4">
             <h4 className="font-bold text-sm">Company</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
+              <li><Link to="/about-us" className="hover:text-primary transition-colors">About Us</Link></li>
+              <li><Link to="/careers" className="hover:text-primary transition-colors">Careers</Link></li>
+              <li><Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
           <div className="space-y-4">
