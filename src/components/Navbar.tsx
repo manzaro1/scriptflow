@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film, Search, Bell, User, Plus, Menu } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -34,14 +34,22 @@ const Navbar = ({ onSearch }: NavbarProps) => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('isAuthenticated');
+        navigate('/');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
-      localStorage.removeItem('isAuthenticated');
       showSuccess("Logged out successfully");
-      navigate('/');
     } catch (error: any) {
       showError(error.message || "Failed to log out");
     }
