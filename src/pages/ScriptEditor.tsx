@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { showSuccess, showLoading, dismissToast, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeInput } from "@/utils/security";
 import CharacterProfileModal from "@/components/CharacterProfileModal";
 import CharacterChat from "@/components/CharacterChat";
 import ProductionOverseer from "@/components/ProductionOverseer";
@@ -81,7 +82,6 @@ const ScriptEditor = () => {
         setScriptTitle(data.title);
         setScriptAuthor(data.author);
         
-        // Handle empty content or incorrect format by providing a default block
         const loadedContent = Array.isArray(data.content) && data.content.length > 0 
           ? data.content 
           : [{ id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' }];
@@ -115,12 +115,18 @@ const ScriptEditor = () => {
     setSaving(true);
     const toastId = showLoading("Saving changes...");
 
+    // Sanitize all content before sending to database
+    const sanitizedBlocks = blocks.map(block => ({
+      ...block,
+      content: sanitizeInput(block.content)
+    }));
+
     const { error } = await supabase
       .from('scripts')
       .update({ 
-        content: blocks,
-        title: scriptTitle,
-        author: scriptAuthor,
+        content: sanitizedBlocks,
+        title: sanitizeInput(scriptTitle),
+        author: sanitizeInput(scriptAuthor),
         updated_at: new Date().toISOString()
       })
       .eq('id', scriptId);
@@ -131,7 +137,7 @@ const ScriptEditor = () => {
     if (error) {
       showError("Save failed");
     } else {
-      showSuccess("Script saved");
+      showSuccess("Script saved securely");
     }
   };
 
@@ -343,9 +349,9 @@ const ScriptEditor = () => {
         <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-muted/30">
           <div className="w-[850px] min-h-[1100px] bg-white dark:bg-slate-50 text-black shadow-xl p-[80px] font-['Courier_Prime',monospace] text-[12pt] leading-tight cursor-text relative">
             <div className="text-center mb-12 uppercase">
-              <h1 className="text-2xl font-bold outline-none focus:bg-primary/5 rounded px-2" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptTitle(e.currentTarget.innerText)}>{scriptTitle.toUpperCase()}</h1>
+              <h1 className="text-2xl font-bold outline-none focus:bg-primary/5 rounded px-2" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptTitle(sanitizeInput(e.currentTarget.innerText))}>{scriptTitle.toUpperCase()}</h1>
               <p className="mt-2 text-sm">Written by</p>
-              <p className="mt-1 outline-none focus:bg-primary/5 rounded px-2 min-w-[100px] inline-block" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptAuthor(e.currentTarget.innerText)}>{scriptAuthor}</p>
+              <p className="mt-1 outline-none focus:bg-primary/5 rounded px-2 min-w-[100px] inline-block" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptAuthor(sanitizeInput(e.currentTarget.innerText))}>{scriptAuthor}</p>
             </div>
 
             <div className="space-y-0">
@@ -393,7 +399,7 @@ const ScriptEditor = () => {
         isOpen={isRenameModalOpen}
         onOpenChange={setIsRenameModalOpen}
         currentTitle={scriptTitle}
-        onRename={setScriptTitle}
+        onRename={(title) => setScriptTitle(sanitizeInput(title))}
       />
     </div>
   );

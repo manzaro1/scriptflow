@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import { sanitizeInput } from "@/utils/security";
 
 const SCRIPTS = [
   { id: "1", title: "The Neon Horizon" },
@@ -67,6 +68,29 @@ const CallSheet = () => {
     showSuccess("Preparing call sheet for print...");
   };
 
+  const handleSave = () => {
+    // Sanitize all production state before 'saving'
+    const sanitizedSchedule = schedule.map(row => ({
+      ...row,
+      time: sanitizeInput(row.time),
+      sc: sanitizeInput(row.sc),
+      desc: sanitizeInput(row.desc),
+      cast: sanitizeInput(row.cast),
+      loc: sanitizeInput(row.loc)
+    }));
+    
+    const sanitizedCast = castData.map(row => ({
+      ...row,
+      name: sanitizeInput(row.name),
+      role: sanitizeInput(row.role),
+      call: sanitizeInput(row.call)
+    }));
+
+    setSchedule(sanitizedSchedule);
+    setCastData(sanitizedCast);
+    showSuccess("Call sheet validated and saved securely.");
+  };
+
   const handleAIWeatherSync = () => {
     setIsFetchingWeather(true);
     const toastId = showLoading("AI analyzing location forecast...");
@@ -90,6 +114,18 @@ const CallSheet = () => {
 
   const removeScheduleRow = (index: number) => {
     setSchedule(schedule.filter((_, i) => i !== index));
+  };
+
+  const updateScheduleCell = (index: number, field: string, value: string) => {
+    const newSchedule = [...schedule];
+    (newSchedule[index] as any)[field] = sanitizeInput(value);
+    setSchedule(newSchedule);
+  };
+
+  const updateCastCell = (index: number, field: string, value: string) => {
+    const newCast = [...castData];
+    (newCast[index] as any)[field] = sanitizeInput(value);
+    setCastData(newCast);
   };
 
   return (
@@ -134,7 +170,7 @@ const CallSheet = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => showSuccess("Call sheet saved.")}>
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleSave}>
                   <Save size={16} />
                   Save
                 </Button>
@@ -154,7 +190,7 @@ const CallSheet = () => {
                 <div className="flex flex-col md:flex-row justify-between gap-6 border-b pb-6">
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <h2 className="text-4xl font-black tracking-tighter uppercase italic outline-none focus:bg-muted p-1 rounded" contentEditable suppressContentEditableWarning>
+                      <h2 className="text-4xl font-black tracking-tighter uppercase italic outline-none focus:bg-muted p-1 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => setSelectedScript({...selectedScript, title: sanitizeInput(e.currentTarget.innerText)})}>
                         {selectedScript.title}
                       </h2>
                       <p className="text-sm font-bold uppercase text-muted-foreground tracking-widest outline-none focus:bg-muted px-1" contentEditable suppressContentEditableWarning>
@@ -274,11 +310,11 @@ const CallSheet = () => {
                     <TableBody>
                       {schedule.map((row, i) => (
                         <TableRow key={i} className={row.desc.includes('LUNCH') ? 'bg-primary/5 font-bold' : 'group'}>
-                          <TableCell className="font-mono text-xs outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.time}</TableCell>
-                          <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.sc}</TableCell>
-                          <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.desc}</TableCell>
-                          <TableCell className="text-xs font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.cast}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.loc}</TableCell>
+                          <TableCell className="font-mono text-xs outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'time', e.currentTarget.innerText)}>{row.time}</TableCell>
+                          <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'sc', e.currentTarget.innerText)}>{row.sc}</TableCell>
+                          <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'desc', e.currentTarget.innerText)}>{row.desc}</TableCell>
+                          <TableCell className="text-xs font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'cast', e.currentTarget.innerText)}>{row.cast}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'loc', e.currentTarget.innerText)}>{row.loc}</TableCell>
                           <TableCell className="text-right print:hidden">
                             <Button 
                               variant="ghost" 
@@ -311,12 +347,12 @@ const CallSheet = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {castData.map((row) => (
+                        {castData.map((row, i) => (
                           <TableRow key={row.id}>
-                            <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.id}</TableCell>
-                            <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.name}</TableCell>
-                            <TableCell className="text-xs font-bold uppercase text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.role}</TableCell>
-                            <TableCell className="font-mono font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.call}</TableCell>
+                            <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'id', e.currentTarget.innerText)}>{row.id}</TableCell>
+                            <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'name', e.currentTarget.innerText)}>{row.name}</TableCell>
+                            <TableCell className="text-xs font-bold uppercase text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'role', e.currentTarget.innerText)}>{row.role}</TableCell>
+                            <TableCell className="font-mono font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'call', e.currentTarget.innerText)}>{row.call}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -325,7 +361,7 @@ const CallSheet = () => {
 
                   <div className="space-y-4 bg-muted/20 p-6 rounded-xl border-2 border-dashed border-muted">
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Production Notes</h3>
-                    <div className="text-xs space-y-3 list-disc pl-4 text-muted-foreground font-medium outline-none focus:bg-white p-2 rounded" contentEditable suppressContentEditableWarning>
+                    <div className="text-xs space-y-3 list-disc pl-4 text-muted-foreground font-medium outline-none focus:bg-white p-2 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => sanitizeInput(e.currentTarget.innerText)}>
                       <p>• Safety meeting at 07:15 for all electrical and grip crew.</p>
                       <p>• Heavy rain effects in Scene 12—bring appropriate weather gear.</p>
                       <p>• Parking strictly enforced in Hangar lot; use shuttle for Overflow.</p>
@@ -336,7 +372,7 @@ const CallSheet = () => {
                         <CalendarDays size={14} />
                         <span className="text-[10px] font-black uppercase">Tomorrow's Look</span>
                       </div>
-                      <p className="text-[10px] mt-1 italic outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning>
+                      <p className="text-[10px] mt-1 italic outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => sanitizeInput(e.currentTarget.innerText)}>
                         Scene 16-19: Night exterior car chase sequence. Prep vehicles for 14:00.
                       </p>
                     </div>
