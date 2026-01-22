@@ -156,181 +156,183 @@ const Landing = () => {
                 <CardDescription className="text-sm">Define deep character profiles. Our AI monitors every line of dialogue to ensure behavioral consistency across your entire draft.</CardDescription>
               </CardHeader>
             </Card>
-            <Card className="bg-purple-500/10 text-purple-600 w-12 h-12 flex items-center justify-center rounded-xl mb-4">
-              <Sparkles size={24} />
+            <Card className="bg-slate-50/50 dark:bg-[#020817] border-none shadow-none hover:translate-y-[-4px] transition-transform">
+              <CardHeader>
+                <div className="bg-purple-500/10 text-purple-600 w-12 h-12 flex items-center justify-center rounded-xl mb-4">
+                  <Sparkles size={24} />
+                </div>
+                <CardTitle>AI Storyboard Engine</CardTitle>
+                <CardDescription className="text-sm">Instantly convert your action lines into high-fidelity cinematic blueprints. Visualize your lighting, camera angles, and color palettes.</CardDescription>
+              </CardHeader>
             </Card>
-            <CardTitle>AI Storyboard Engine</CardTitle>
-            <CardDescription className="text-sm">Instantly convert your action lines into high-fidelity cinematic blueprints. Visualize your lighting, camera angles, and color palettes.</CardDescription>
-          </CardHeader>
-        </Card>
-        <Card className="bg-slate-50/50 dark:bg-[#020817] border-none shadow-none hover:translate-y-[-4px] transition-transform">
-          <CardHeader>
-            <div className="bg-orange-500/10 text-orange-600 w-12 h-12 flex items-center justify-center rounded-xl mb-4">
-              <Zap size={24} />
-            </div>
-            <CardTitle>Live Production Sheets</CardTitle>
-            <CardDescription className="text-sm">Generate industry-standard call sheets that update in real-time. Sync weather data via AI and manage your crew calls effortlessly.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    </div>
-  </section>
-
-  {/* Pricing Section */}
-  <section id="pricing" className="py-24 relative overflow-hidden">
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-        <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Simple, Transparent Pricing</h2>
-        <p className="text-muted-foreground">Start for free and upgrade as your production scales.</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-        {/* Free Tier */}
-        <Card className="border-none shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-xl">Hobbyist</CardTitle>
-            <CardDescription>Perfect for starting your journey.</CardDescription>
-            <div className="pt-4">
-              <span className="text-4xl font-black">$0</span>
-              <span className="text-muted-foreground">/mo</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              {[
-                "1 Active Script Project",
-                "Standard Script Editor",
-                "Basic Call Sheets",
-                "PDF Export"
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 size={16} className="text-green-500" />
-                  {item}
+            <Card className="bg-slate-50/50 dark:bg-[#020817] border-none shadow-none hover:translate-y-[-4px] transition-transform">
+              <CardHeader>
+                <div className="bg-orange-500/10 text-orange-600 w-12 h-12 flex items-center justify-center rounded-xl mb-4">
+                  <Zap size={24} />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button variant="outline" className="w-full h-11" onClick={() => handleProductClick('/dashboard')}>Get Started</Button>
-          </CardFooter>
-        </Card>
-
-        {/* Pro Tier */}
-        <Card className="border-primary border-2 shadow-2xl scale-105 z-10 bg-background relative">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-            <Badge className="bg-primary text-primary-foreground px-4 py-1 text-[10px] font-black uppercase tracking-widest">Most Popular</Badge>
+                <CardTitle>Live Production Sheets</CardTitle>
+                <CardDescription className="text-sm">Generate industry-standard call sheets that update in real-time. Sync weather data via AI and manage your crew calls effortlessly.</CardDescription>
+              </CardHeader>
+            </Card>
           </div>
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2">
-              Production Pro
-              <Star size={16} className="text-yellow-500 fill-yellow-500" />
-            </CardTitle>
-            <CardDescription>Everything needed for serious creators.</CardDescription>
-            <div className="pt-4">
-              <span className="text-4xl font-black">$19</span>
-              <span className="text-muted-foreground">/mo</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              {[
-                "Unlimited Projects",
-                "AI Character DNA Intelligence",
-                "AI Storyboard Generation (50/mo)",
-                "Pro Production Blueprint Export",
-                "Advanced Collaboration Tools",
-                "Custom Watermarking"
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 size={16} className="text-primary font-bold" />
-                  {item}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" onClick={() => handleProductClick('/dashboard')}>Go Pro Now</Button>
-          </CardFooter>
-        </Card>
-
-        {/* Studio Tier */}
-        <Card className="border-none shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-xl">Studio</CardTitle>
-            <CardDescription>For full production houses.</CardDescription>
-            <div className="pt-4">
-              <span className="text-4xl font-black">$49</span>
-              <span className="text-muted-foreground">/mo</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              {[
-                "Everything in Pro",
-                "Unlimited AI Storyboarding",
-                "Dedicated Production Overseer",
-                "Team Permissions Management",
-                "Priority Technical Support",
-                "SSO & API Access"
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 size={16} className="text-green-500" />
-                  {item}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button variant="outline" className="w-full h-11" onClick={() => handleProductClick('/dashboard')}>Contact Sales</Button>
-          </CardFooter>
-        </Card>
-      </div>
-    </div>
-  </section>
-
-  {/* Footer */}
-  <footer className="py-20 border-t bg-slate-50 dark:bg-[#020817]">
-    <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 font-bold text-lg">
-          <Film size={20} className="text-primary" />
-          <span>ScriptFlow</span>
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Empowering the next generation of filmmakers with production intelligence and AI-driven narrative tools.
-        </p>
-      </div>
-      <div className="space-y-4">
-        <h4 className="font-bold text-sm">Product</h4>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li><button onClick={() => handleProductClick('/editor')} className="hover:text-primary transition-colors">Editor</button></li>
-          <li><button onClick={() => handleProductClick('/editor')} className="hover:text-primary transition-colors">AI Storyboard</button></li>
-          <li><button onClick={() => handleProductClick('/call-sheet')} className="hover:text-primary transition-colors">Call Sheets</button></li>
-          <li><a href="#pricing" className="hover:text-primary transition-colors">Pricing</a></li>
-        </ul>
-      </div>
-      <div className="space-y-4">
-        <h4 className="font-bold text-sm">Company</h4>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li><Link to="/about-us" className="hover:text-primary transition-colors">About Us</Link></li>
-          <li><Link to="/careers" className="hover:text-primary transition-colors">Careers</Link></li>
-          <li><Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
-          <li><Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-        </ul>
-      </div>
-      <div className="space-y-4">
-        <h4 className="font-bold text-sm">Join the Newsletter</h4>
-        <div className="flex gap-2">
-          <input type="email" placeholder="email@example.com" className="bg-background border rounded px-3 py-2 text-sm w-full outline-none focus:ring-1 ring-primary" />
-          <Button size="sm">Join</Button>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-24 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Simple, Transparent Pricing</h2>
+            <p className="text-muted-foreground">Start for free and upgrade as your production scales.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+            {/* Free Tier */}
+            <Card className="border-none shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl">Hobbyist</CardTitle>
+                <CardDescription>Perfect for starting your journey.</CardDescription>
+                <div className="pt-4">
+                  <span className="text-4xl font-black">$0</span>
+                  <span className="text-muted-foreground">/mo</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  {[
+                    "1 Active Script Project",
+                    "Standard Script Editor",
+                    "Basic Call Sheets",
+                    "PDF Export"
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 size={16} className="text-green-500" />
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full h-11" onClick={() => handleProductClick('/dashboard')}>Get Started</Button>
+              </CardFooter>
+            </Card>
+
+            {/* Pro Tier */}
+            <Card className="border-primary border-2 shadow-2xl scale-105 z-10 bg-background relative">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <Badge className="bg-primary text-primary-foreground px-4 py-1 text-[10px] font-black uppercase tracking-widest">Most Popular</Badge>
+              </div>
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  Production Pro
+                  <Star size={16} className="text-yellow-500 fill-yellow-500" />
+                </CardTitle>
+                <CardDescription>Everything needed for serious creators.</CardDescription>
+                <div className="pt-4">
+                  <span className="text-4xl font-black">$19</span>
+                  <span className="text-muted-foreground">/mo</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  {[
+                    "Unlimited Projects",
+                    "AI Character DNA Intelligence",
+                    "AI Storyboard Generation (50/mo)",
+                    "Pro Production Blueprint Export",
+                    "Advanced Collaboration Tools",
+                    "Custom Watermarking"
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 size={16} className="text-primary font-bold" />
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full h-11 font-bold shadow-lg shadow-primary/20" onClick={() => handleProductClick('/dashboard')}>Go Pro Now</Button>
+              </CardFooter>
+            </Card>
+
+            {/* Studio Tier */}
+            <Card className="border-none shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl">Studio</CardTitle>
+                <CardDescription>For full production houses.</CardDescription>
+                <div className="pt-4">
+                  <span className="text-4xl font-black">$49</span>
+                  <span className="text-muted-foreground">/mo</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  {[
+                    "Everything in Pro",
+                    "Unlimited AI Storyboarding",
+                    "Dedicated Production Overseer",
+                    "Team Permissions Management",
+                    "Priority Technical Support",
+                    "SSO & API Access"
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 size={16} className="text-green-500" />
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full h-11" onClick={() => handleProductClick('/dashboard')}>Contact Sales</Button>
+              </CardFooter>
+            </Card>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-20 border-t bg-slate-50 dark:bg-[#020817]">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 font-bold text-lg">
+              <Film size={20} className="text-primary" />
+              <span>ScriptFlow</span>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Empowering the next generation of filmmakers with production intelligence and AI-driven narrative tools.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <h4 className="font-bold text-sm">Product</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><button onClick={() => handleProductClick('/editor')} className="hover:text-primary transition-colors">Editor</button></li>
+              <li><button onClick={() => handleProductClick('/editor')} className="hover:text-primary transition-colors">AI Storyboard</button></li>
+              <li><button onClick={() => handleProductClick('/call-sheet')} className="hover:text-primary transition-colors">Call Sheets</button></li>
+              <li><a href="#pricing" className="hover:text-primary transition-colors">Pricing</a></li>
+            </ul>
+          </div>
+          <div className="space-y-4">
+            <h4 className="font-bold text-sm">Company</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link to="/about-us" className="hover:text-primary transition-colors">About Us</Link></li>
+              <li><Link to="/careers" className="hover:text-primary transition-colors">Careers</Link></li>
+              <li><Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+            </ul>
+          </div>
+          <div className="space-y-4">
+            <h4 className="font-bold text-sm">Join the Newsletter</h4>
+            <div className="flex gap-2">
+              <input type="email" placeholder="email@example.com" className="bg-background border rounded px-3 py-2 text-sm w-full outline-none focus:ring-1 ring-primary" />
+              <Button size="sm">Join</Button>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 pt-12 mt-12 border-t text-center text-xs text-muted-foreground">
+          © 2026 ScriptFlow AI. All rights reserved. Made for visionaries.
+        </div>
+      </footer>
     </div>
-    <div className="max-w-7xl mx-auto px-6 pt-12 mt-12 border-t text-center text-xs text-muted-foreground">
-      © 2026 ScriptFlow AI. All rights reserved. Made for visionaries.
-    </div>
-  </footer>
-</div>
-);
+  );
 };
 
 export default Landing;
