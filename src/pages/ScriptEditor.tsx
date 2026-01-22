@@ -12,7 +12,8 @@ import {
   UserCircle2,
   Share2,
   Info,
-  Edit2
+  Edit2,
+  Files
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +62,9 @@ const ScriptEditor = () => {
   
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Roughly calculate pages based on blocks (standard 55 lines per page)
+  const pageCount = Math.max(1, Math.ceil(blocks.length / 15));
 
   useEffect(() => {
     if (focusedBlockId && blockRefs.current[focusedBlockId]) {
@@ -180,6 +184,11 @@ const ScriptEditor = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-1.5 px-3 h-8 bg-muted/50 rounded-md border mr-2">
+            <Files size={14} className="text-muted-foreground" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{pageCount} {pageCount === 1 ? 'Page' : 'Pages'}</span>
+          </div>
+
           <Button 
             variant="outline" 
             size="sm" 
@@ -292,7 +301,12 @@ const ScriptEditor = () => {
         </aside>
 
         <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-gray-100">
-          <div className="w-[850px] min-h-[1100px] bg-white shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight cursor-text">
+          <div className="w-[850px] min-h-[1100px] bg-white shadow-xl p-[80px] font-['Courier_Prime',Courier,monospace] text-[12pt] leading-tight cursor-text relative">
+            {/* Professional Page Numbering */}
+            <div className="absolute top-10 right-10 font-['Courier_Prime',Courier,monospace] text-[12pt]">
+              1.
+            </div>
+
             <div className="text-center mb-12 uppercase">
               <h1 className="text-2xl font-bold outline-none focus:bg-primary/5 rounded px-2" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptTitle(e.currentTarget.innerText)}>{scriptTitle.toUpperCase()}</h1>
               <p className="mt-2 text-sm">Written by</p>
