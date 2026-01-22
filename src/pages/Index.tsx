@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ScriptCard from "@/components/ScriptCard";
@@ -9,7 +9,8 @@ import ProductionStats from "@/components/ProductionStats";
 import OnboardingTour from "@/components/OnboardingTour";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Filter, Plus, SearchX } from 'lucide-react';
+import { Filter, Plus, SearchX, Loader2 } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,63 +21,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const INITIAL_SCRIPTS = [
-  {
-    id: "1",
-    title: "The Neon Horizon",
-    author: "Alex Rivers",
-    status: "In Progress" as const,
-    lastModified: "2 hours ago",
-    genre: "Sci-Fi",
-    category: "recent"
-  },
-  {
-    id: "2",
-    title: "Silent Echoes",
-    author: "Alex Rivers",
-    status: "Draft" as const,
-    lastModified: "1 day ago",
-    genre: "Thriller",
-    category: "recent"
-  },
-  {
-    id: "3",
-    title: "Midnight in Paris",
-    author: "Sarah Chen",
-    status: "Final" as const,
-    lastModified: "1 week ago",
-    genre: "Romance",
-    category: "shared"
-  },
-  {
-    id: "4",
-    title: "Deep Space 9",
-    author: "Alex Rivers",
-    status: "Draft" as const,
-    lastModified: "2 weeks ago",
-    genre: "Sci-Fi",
-    category: "archived"
-  },
-  {
-    id: "5",
-    title: "The Last Heist",
-    author: "John Doe",
-    status: "In Progress" as const,
-    lastModified: "3 days ago",
-    genre: "Action",
-    category: "shared"
-  }
-];
-
 const Index = () => {
-  const [scripts, setScripts] = useState(INITIAL_SCRIPTS);
+  const [scripts, setScripts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  useEffect(() => {
+    const fetchScripts = async () => {
+      const { data, error } = await supabase
+        .from('scripts')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      
+      if (!error && data) {
+        setScripts(data);
+      }
+      setLoading(false);
+    };
+
+    fetchScripts();
+  }, []);
+
   const filteredScripts = useMemo(() => {
     return scripts.filter(script => {
-      const matchesTab = activeTab === "all" || script.category === activeTab;
+      const matchesTab = activeTab === "all" || (activeTab === "recent" && script.status !== 'Archived');
       const matchesGenre = genreFilter === "all" || script.genre === genreFilter;
       const matchesSearch = script.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                            script.author.toLowerCase().includes(searchQuery.toLowerCase());
@@ -86,19 +56,27 @@ const Index = () => {
 
   const genres = ["all", ...new Set(scripts.map(s => s.genre))];
 
-  const handleRename = (id: string, newTitle: string) => {
-    setScripts(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
+  const handleRename = async (id: string, newTitle: string) => {
+    const { error } = await supabase
+      .from('scripts')
+      .update({ title: newTitle, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (!error) {
+      setScripts(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setScripts(prev => prev.filter(s => s.id !== id));
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('scripts').delete().eq('id', id);
+    if (!error) {
+      setScripts(prev => prev.filter(s => s.id !== id));
+    }
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <OnboardingTour />
-      {/* Passing setSearchQuery to Navbar would be ideal via context, but for this demo 
-          we'll assume search is local or handled via a shared layout state in a real app */}
       <Navbar onSearch={setSearchQuery} />
       <div className="flex flex-1">
         <Sidebar />
@@ -148,72 +126,31 @@ const Index = () => {
                   <TabsTrigger value="shared">Shared</TabsTrigger>
                   <TabsTrigger value="archived">Archived</TabsTrigger>
                 </TabsList>
-                
-                {searchQuery && (
-                  <span className="text-xs text-muted-foreground animate-in fade-in slide-in-from-right-2">
-                    Showing results for "{searchQuery}"
-                  </span>
-                )}
               </div>
               
-              {filteredScripts.length > 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="animate-spin text-primary" size={32} />
+                </div>
+              ) : filteredScripts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredScripts.map((script) => (
                     <ScriptCard 
                       key={script.id} 
                       {...script} 
+                      lastModified={new Date(script.updated_at).toLocaleDateString()}
                       onRename={handleRename}
                       onDelete={handleDelete}
                     />
                   ))}
-                  
-                  {activeTab === 'all' && !searchQuery && (
-                    <NewScriptModal>
-                      <button className="border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-8 text-muted-foreground hover:text-primary hover:border-primary transition-all group min-h-[200px]">
-                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3 group-hover:bg-primary/10">
-                          <Plus className="group-hover:text-primary" />
-                        </div>
-                        <span className="font-medium text-sm">Add New Script</span>
-                      </button>
-                    </NewScriptModal>
-                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10">
                   <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium">No scripts found</h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                    Try adjusting your filters or search query to find what you're looking for.
-                  </p>
-                  <Button variant="link" onClick={() => { setGenreFilter('all'); setActiveTab('all'); setSearchQuery(''); }} className="mt-2">
-                    Clear all filters
-                  </Button>
                 </div>
               )}
             </Tabs>
-
-            <section className="space-y-4 pt-4">
-              <h2 className="text-xl font-semibold">Ready for Production</h2>
-              <div className="bg-muted/30 border rounded-xl p-8 flex flex-col items-center justify-center text-center">
-                {scripts.filter(s => s.status === 'Final').length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-                    {scripts.filter(s => s.status === 'Final').map(script => (
-                      <ScriptCard key={script.id} {...script} onRename={handleRename} onDelete={handleDelete} />
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    <div className="bg-primary/10 text-primary p-3 rounded-full mb-4">
-                      <Plus size={24} />
-                    </div>
-                    <h3 className="font-medium">No scripts marked as final yet</h3>
-                    <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      Once you finish a draft and mark it as 'Final', it will appear here for easy production access.
-                    </p>
-                  </>
-                )}
-              </div>
-            </section>
           </div>
         </main>
       </div>
