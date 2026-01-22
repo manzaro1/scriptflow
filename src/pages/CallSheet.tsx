@@ -40,6 +40,13 @@ const SCRIPTS = [
   { id: "5", title: "The Last Heist" }
 ];
 
+const MOCK_CAST_DATA = [
+  { id: 1, name: 'John Actor', role: 'KAI', call: '06:00' },
+  { id: 2, name: 'Sarah Star', role: 'SARA', call: '08:30' },
+  { id: 3, name: 'Mike Talent', role: 'VEO', call: '09:00' },
+  { id: 4, name: 'Elena Pro', role: 'DR. ARIS', call: '13:30' },
+];
+
 const INITIAL_SCHEDULE = [
   { time: '08:00', sc: '12', desc: 'EXT. SKYLINE - NIGHT. Kai watches the rain.', cast: '1', loc: 'Stage 4' },
   { time: '10:30', sc: '14A', desc: 'INT. HANGAR - DAY. Arrival of the shipment.', cast: '1, 2, 4', loc: 'Stage 4' },
@@ -53,6 +60,7 @@ const CallSheet = () => {
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const [weather, setWeather] = useState({ temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
   const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
+  const [castData, setCastData] = useState(MOCK_CAST_DATA);
 
   const handlePrint = () => {
     window.print();
@@ -303,12 +311,7 @@ const CallSheet = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {[
-                          { id: 1, name: 'John Actor', role: 'KAI', call: '06:00' },
-                          { id: 2, name: 'Sarah Star', role: 'SARA', call: '08:30' },
-                          { id: 4, name: 'Mike Talent', role: 'VEO', call: '09:00' },
-                          { id: 5, name: 'Elena Pro', role: 'DR. ARIS', call: '13:30' },
-                        ].map((row) => (
+                        {castData.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.id}</TableCell>
                             <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.name}</TableCell>
