@@ -57,7 +57,7 @@ const ScriptEditor = () => {
   const [aiTab, setAiTab] = useState<string>("overseer");
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [isStoryboardOpen, setIsStoryboardOpen] = useState(false);
-  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [isRenameModalOpen, setIsRenameModal] = useState(false);
   
   const [scriptTitle, setScriptTitle] = useState("");
   const [scriptAuthor, setScriptAuthor] = useState("");
@@ -262,7 +262,7 @@ const ScriptEditor = () => {
             <ArrowLeft size={20} />
           </Button>
           <div className="h-4 w-px bg-border" />
-          <div className="flex flex-col group cursor-pointer" onClick={() => setIsRenameModalOpen(true)}>
+          <div className="flex flex-col group cursor-pointer" onClick={() => setIsRenameModal(true)}>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold">{scriptTitle || "Untitled"}</span>
               <Edit2 size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -397,7 +397,7 @@ const ScriptEditor = () => {
 
       <RenameScriptModal 
         isOpen={isRenameModalOpen}
-        onOpenChange={setIsRenameModalOpen}
+        onOpenChange={setIsRenameModal}
         currentTitle={scriptTitle}
         onRename={(title) => setScriptTitle(sanitizeInput(title))}
       />

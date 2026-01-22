@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Sparkles, BrainCircuit } from 'lucide-react';
+import { Send, User, Bot, Sparkles, BrainCircuit, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +25,7 @@ const CharacterChat = ({ characterName }: { characterName: string }) => {
     }
   ]);
   const [input, setInput] = useState('');
+  const [isResponding, setIsResponding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,8 +34,35 @@ const CharacterChat = ({ characterName }: { characterName: string }) => {
     }
   }, [messages]);
 
+  const simulateCharacterResponse = async (userMessageContent: string) => {
+    setIsResponding(true);
+    
+    // --- Conceptual Supabase Edge Function Call ---
+    // In a real implementation, this would be:
+    // const { data, error } = await supabase.functions.invoke('chat-with-character', { body: { userMessageContent, characterName } });
+    
+    await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000)); // Simulate network delay
+    
+    const responses = [
+      `As ${characterName}, I feel that my current dialogue in Scene 4 is too soft. I would be more aggressive there.`,
+      "That decision doesn't align with my motivation. I'm here for revenge, not for reconciliation.",
+      "The way you wrote that action line makes me feel vulnerable. Is that intentional?",
+      "I like where this is going, but my nationality would influence the slang I use here."
+    ];
+    
+    const charMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'character',
+      content: responses[Math.floor(Math.random() * responses.length)],
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, charMessage]);
+    setIsResponding(false);
+  };
+
   const handleSend = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isResponding) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -44,25 +72,10 @@ const CharacterChat = ({ characterName }: { characterName: string }) => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageToSend = input;
     setInput('');
-
-    // Simulate AI character response
-    setTimeout(() => {
-      const responses = [
-        `As ${characterName}, I feel that my current dialogue in Scene 4 is too soft. I would be more aggressive there.`,
-        "That decision doesn't align with my motivation. I'm here for revenge, not for reconciliation.",
-        "The way you wrote that action line makes me feel vulnerable. Is that intentional?",
-        "I like where this is going, but my nationality would influence the slang I use here."
-      ];
-      
-      const charMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'character',
-        content: responses[Math.floor(Math.random() * responses.length)],
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, charMessage]);
-    }, 1000);
+    
+    simulateCharacterResponse(messageToSend);
   };
 
   return (
@@ -99,6 +112,14 @@ const CharacterChat = ({ characterName }: { characterName: string }) => {
               </div>
             </div>
           ))}
+          {isResponding && (
+            <div className="flex justify-start">
+              <div className="max-w-[85%] rounded-2xl px-3 py-2 text-sm bg-muted rounded-tl-none border flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin text-purple-600" />
+                <span className="text-muted-foreground italic">Thinking...</span>
+              </div>
+            </div>
+          )}
         </div>
       </ScrollArea>
 
@@ -110,9 +131,10 @@ const CharacterChat = ({ characterName }: { characterName: string }) => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             className="text-xs h-9"
+            disabled={isResponding}
           />
-          <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend}>
-            <Send size={14} />
+          <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={!input.trim() || isResponding}>
+            {isResponding ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
           </Button>
         </div>
       </div>

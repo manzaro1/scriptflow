@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { showSuccess } from "@/utils/toast";
+import { Loader2 } from 'lucide-react';
 
 interface RenameScriptModalProps {
   isOpen: boolean;
@@ -22,20 +23,28 @@ interface RenameScriptModalProps {
 
 const RenameScriptModal = ({ isOpen, onOpenChange, currentTitle, onRename }: RenameScriptModalProps) => {
   const [newTitle, setNewTitle] = useState(currentTitle);
+  const [isRenaming, setIsRenaming] = useState(false);
 
   useEffect(() => {
     setNewTitle(currentTitle);
   }, [currentTitle]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || newTitle === currentTitle) {
       onOpenChange(false);
       return;
     }
     
+    setIsRenaming(true);
+    
+    // Simulate async operation (or replace with actual Supabase call if implemented)
+    await new Promise(resolve => setTimeout(resolve, 500)); 
+    
     onRename(newTitle.trim());
     showSuccess(`Script renamed to "${newTitle.trim()}"`);
+    
+    setIsRenaming(false);
     onOpenChange(false);
   };
 
@@ -57,9 +66,12 @@ const RenameScriptModal = ({ isOpen, onOpenChange, currentTitle, onRename }: Ren
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={!newTitle.trim() || newTitle === currentTitle}>
-              Save Title
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isRenaming}>Cancel</Button>
+            <Button 
+              type="submit" 
+              disabled={!newTitle.trim() || newTitle === currentTitle || isRenaming}
+            >
+              {isRenaming ? <Loader2 size={16} className="animate-spin" /> : 'Save Title'}
             </Button>
           </DialogFooter>
         </form>

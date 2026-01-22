@@ -7,6 +7,7 @@ import ScriptCard from "@/components/ScriptCard";
 import NewScriptModal from "@/components/NewScriptModal";
 import ProductionStats from "@/components/ProductionStats";
 import OnboardingTour from "@/components/OnboardingTour";
+import ScriptCardSkeleton from "@/components/ScriptCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Filter, SearchX, Loader2 } from 'lucide-react';
@@ -29,6 +30,7 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchScripts = async () => {
+    setLoading(true);
     const { data, error } = await supabase
       .from('scripts')
       .select('*')
@@ -148,8 +150,10 @@ const Index = () => {
               </div>
               
               {loading ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="animate-spin text-primary" size={32} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <ScriptCardSkeleton key={i} />
+                  ))}
                 </div>
               ) : filteredScripts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

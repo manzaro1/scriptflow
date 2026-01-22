@@ -44,6 +44,7 @@ import { showSuccess, showLoading, dismissToast, showError } from "@/utils/toast
 import StoryboardView, { StoryboardRow } from "./StoryboardView";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { supabase } from "@/integrations/supabase/client";
 
 interface ScriptBlock {
   id: string;
@@ -56,6 +57,7 @@ interface StoryboardGeneratorProps {
   onOpenChange: (open: boolean) => void;
   scriptBlocks: ScriptBlock[];
   scriptTitle: string;
+  scriptId: string | null;
 }
 
 const AI_MODELS = [
@@ -70,7 +72,7 @@ const ASPECT_RATIOS = [
   { id: '16:9', name: '16:9 (HD / Digital)' },
 ];
 
-const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }: StoryboardGeneratorProps) => {
+const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, scriptId }: StoryboardGeneratorProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-pro-vision');
@@ -141,15 +143,42 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
     return extracted.slice(0, 15);
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (!scriptId) {
+      showError("Cannot generate blueprint: Script ID is missing.");
+      return;
+    }
+    
     setIsGenerating(true);
-    setTimeout(() => {
-      const data = extractCinematicData();
-      setStoryboardData(data);
-      setIsGenerating(false);
-      setShowResult(true);
-      showSuccess(`Production Blueprint forged with ${aspectRatio} masking.`);
-    }, 2000);
+    const toastId = showLoading("Analyzing script and forging blueprint...");
+
+    // 1. Simulate AI extraction
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const data = extractCinematicData();
+    
+    // 2. Save to Supabase
+    const { data: savedData, error } = await supabase
+      .from('storyboards')
+      .insert({
+        script_id: scriptId,
+        data: data, // The generated storyboard rows
+        aspect_ratio: aspectRatio,
+      })
+      .select()
+      .single();
+
+    dismissToast(toastId);
+    setIsGenerating(false);
+
+    if (error) {
+      console.error("Supabase save error:", error);
+      showError("Failed to save storyboard blueprint.");
+      return;
+    }
+
+    setStoryboardData(data);
+    setShowResult(true);
+    showSuccess(`Production Blueprint forged and saved with ${aspectRatio} masking.`);
   };
 
   const handleExport = async (format: 'json' | 'pdf') => {
@@ -357,7 +386,7 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
               <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button 
                 onClick={handleGenerate} 
-                disabled={isGenerating}
+                disabled={isGenerating || !scriptId}
                 className="bg-orange-600 hover:bg-orange-700 h-11 min-w-[200px] font-bold"
               >
                 {isGenerating ? (

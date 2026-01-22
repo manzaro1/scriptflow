@@ -22,16 +22,17 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles, FileText, Edit3 } from 'lucide-react';
+import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles, FileText, Edit3, Loader2 } from 'lucide-react';
 import { showSuccess } from "@/utils/toast";
 import ScriptUpload from "./ScriptUpload";
 
-const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
+const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, onComplete?: () => void }) => {
   const [step, setStep] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
   const [creationMode, setCreationMode] = useState<'scratch' | 'upload'>('scratch');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [characters, setCharacters] = useState<any[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
   
   // Script form state
   const [title, setTitle] = useState('');
@@ -63,12 +64,21 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
     setCharMotivation('');
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    setIsCreating(true);
+    
+    // --- Simulate Supabase Script Creation ---
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
+    
     const message = creationMode === 'upload' 
       ? `Script imported from "${uploadedFile?.name}" with AI character profiles synchronized.`
-      : `Script "${title}" by ${author} created successfully.`;
+      : `Script "${title || 'Untitled'}" by ${author} created successfully.`;
     
     showSuccess(message);
+    
+    if (onComplete) onComplete();
+    
+    setIsCreating(false);
     setIsOpen(false);
     setStep(1);
     setCharacters([]);
@@ -269,13 +279,23 @@ const NewScriptModal = ({ children }: { children?: React.ReactNode }) => {
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => setStep(1)} className="gap-2">
+              <Button variant="ghost" onClick={() => setStep(1)} className="gap-2" disabled={isCreating}>
                 <ArrowLeft size={16} />
                 Back
               </Button>
-              <Button onClick={handleCreate} className="gap-2 bg-green-600 hover:bg-green-700">
-                {creationMode === 'upload' ? 'Import Script' : 'Create Script'}
-                <Check size={16} />
+              <Button 
+                onClick={handleCreate} 
+                disabled={isCreating}
+                className="gap-2 bg-green-600 hover:bg-green-700"
+              >
+                {isCreating ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <>
+                    {creationMode === 'upload' ? 'Import Script' : 'Create Script'}
+                    <Check size={16} />
+                  </>
+                )}
               </Button>
             </>
           )}
