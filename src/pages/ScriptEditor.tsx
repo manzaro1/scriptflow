@@ -80,7 +80,13 @@ const ScriptEditor = () => {
       } else if (data) {
         setScriptTitle(data.title);
         setScriptAuthor(data.author);
-        setBlocks(Array.isArray(data.content) ? data.content : []);
+        
+        // Handle empty content or incorrect format by providing a default block
+        const loadedContent = Array.isArray(data.content) && data.content.length > 0 
+          ? data.content 
+          : [{ id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' }];
+        
+        setBlocks(loadedContent);
       }
       setLoading(false);
     };
