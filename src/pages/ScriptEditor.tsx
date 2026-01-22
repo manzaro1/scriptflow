@@ -32,6 +32,7 @@ import ShareScriptModal from "@/components/ShareScriptModal";
 import StoryboardGenerator from "@/components/StoryboardGenerator";
 import RenameScriptModal from "@/components/RenameScriptModal";
 import DialogueFeedback from "@/components/DialogueFeedback";
+import CollaboratorStack from "@/components/CollaboratorStack";
 import { cn } from "@/lib/utils";
 
 type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
@@ -235,6 +236,10 @@ const ScriptEditor = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="hidden xl:flex items-center">
+            <CollaboratorStack />
+          </div>
+
           <div className="hidden lg:flex items-center gap-1.5 px-3 h-8 bg-muted rounded-md border mr-2">
             <Files size={14} className="text-muted-foreground" />
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{pageCount} {pageCount === 1 ? 'Page' : 'Pages'}</span>
