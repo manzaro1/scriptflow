@@ -37,7 +37,6 @@ const Navbar = ({ onSearch }: NavbarProps) => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
-        localStorage.removeItem('isAuthenticated');
         navigate('/');
       }
     });

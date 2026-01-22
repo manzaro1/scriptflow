@@ -17,6 +17,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import AuthGuard from "./components/AuthGuard";
+import { AuthProvider } from "./hooks/use-auth";
 
 const queryClient = new QueryClient();
 
@@ -26,25 +27,27 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<AuthPage />} />
-            
-            {/* Protected Routes */}
-            <Route path="/dashboard" element={<AuthGuard><Index /></AuthGuard>} />
-            <Route path="/editor" element={<AuthGuard><ScriptEditor /></AuthGuard>} />
-            <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
-            <Route path="/call-sheet" element={<AuthGuard><CallSheet /></AuthGuard>} />
-            <Route path="/breakdown" element={<AuthGuard><SceneBreakdown /></AuthGuard>} />
-            
-            <Route path="/about-us" element={<AboutUs />} />
-            <Route path="/careers" element={<Careers />} />
-            <Route path="/terms" element={<TermsOfService />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<AuthPage />} />
+              
+              {/* Protected Routes */}
+              <Route path="/dashboard" element={<AuthGuard><Index /></AuthGuard>} />
+              <Route path="/editor" element={<AuthGuard><ScriptEditor /></AuthGuard>} />
+              <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
+              <Route path="/call-sheet" element={<AuthGuard><CallSheet /></AuthGuard>} />
+              <Route path="/breakdown" element={<AuthGuard><SceneBreakdown /></AuthGuard>} />
+              
+              <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/careers" element={<Careers />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
