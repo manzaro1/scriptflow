@@ -18,7 +18,9 @@ import {
   ChevronDown,
   Sparkles,
   Loader2,
-  Save
+  Save,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -38,10 +40,19 @@ const SCRIPTS = [
   { id: "5", title: "The Last Heist" }
 ];
 
+const INITIAL_SCHEDULE = [
+  { time: '08:00', sc: '12', desc: 'EXT. SKYLINE - NIGHT. Kai watches the rain.', cast: '1', loc: 'Stage 4' },
+  { time: '10:30', sc: '14A', desc: 'INT. HANGAR - DAY. Arrival of the shipment.', cast: '1, 2, 4', loc: 'Stage 4' },
+  { time: '13:00', sc: '-', desc: 'LUNCH (1 HOUR)', cast: 'ALL', loc: 'Catering' },
+  { time: '14:00', sc: '15', desc: 'INT. LABORATORY. Dr. Aris reveals the coil.', cast: '4, 5', loc: 'Stage 2' },
+  { time: '17:30', sc: '-', desc: 'WRAP', cast: 'ALL', loc: '-' },
+];
+
 const CallSheet = () => {
   const [selectedScript, setSelectedScript] = useState(SCRIPTS[0]);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const [weather, setWeather] = useState({ temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
+  const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
 
   const handlePrint = () => {
     window.print();
@@ -52,7 +63,6 @@ const CallSheet = () => {
     setIsFetchingWeather(true);
     const toastId = showLoading("AI analyzing location forecast...");
     
-    // Simulate AI weather search
     setTimeout(() => {
       setWeather({
         temp: `${Math.floor(Math.random() * (85 - 65) + 65)}°F`,
@@ -63,6 +73,15 @@ const CallSheet = () => {
       dismissToast(toastId);
       showSuccess("Weather data synchronized via AI forecast engine.");
     }, 2000);
+  };
+
+  const addScheduleRow = () => {
+    setSchedule([...schedule, { time: '00:00', sc: 'NEW', desc: 'Click to edit description...', cast: '-', loc: '-' }]);
+    showSuccess("New schedule line added.");
+  };
+
+  const removeScheduleRow = (index: number) => {
+    setSchedule(schedule.filter((_, i) => i !== index));
   };
 
   return (
@@ -122,10 +141,8 @@ const CallSheet = () => {
               </div>
             </header>
 
-            {/* Industry Standard Call Sheet */}
             <Card className="shadow-xl border-t-8 border-t-primary print:shadow-none print:border-none">
               <CardContent className="p-8 space-y-8">
-                {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between gap-6 border-b pb-6">
                   <div className="space-y-4">
                     <div className="space-y-1">
@@ -155,7 +172,6 @@ const CallSheet = () => {
                   </div>
                 </div>
 
-                {/* Key Info Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-primary">
@@ -220,11 +236,21 @@ const CallSheet = () => {
                   </div>
                 </div>
 
-                {/* Shooting Schedule */}
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 border-l-4 border-primary pl-3">
-                    <Clock size={18} className="text-primary" />
-                    <h3 className="text-lg font-black uppercase tracking-tight">Shooting Schedule</h3>
+                  <div className="flex items-center justify-between border-l-4 border-primary pl-3">
+                    <div className="flex items-center gap-2">
+                      <Clock size={18} className="text-primary" />
+                      <h3 className="text-lg font-black uppercase tracking-tight">Shooting Schedule</h3>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={addScheduleRow} 
+                      className="print:hidden h-7 gap-1 px-2"
+                    >
+                      <Plus size={14} />
+                      Add Line
+                    </Button>
                   </div>
                   <Table>
                     <TableHeader>
@@ -234,29 +260,33 @@ const CallSheet = () => {
                         <TableHead className="font-bold uppercase text-[10px]">Description</TableHead>
                         <TableHead className="w-24 font-bold uppercase text-[10px]">Cast</TableHead>
                         <TableHead className="w-32 font-bold uppercase text-[10px]">Location</TableHead>
+                        <TableHead className="w-10 print:hidden"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {[
-                        { time: '08:00', sc: '12', desc: 'EXT. SKYLINE - NIGHT. Kai watches the rain.', cast: '1', loc: 'Stage 4' },
-                        { time: '10:30', sc: '14A', desc: 'INT. HANGAR - DAY. Arrival of the shipment.', cast: '1, 2, 4', loc: 'Stage 4' },
-                        { time: '13:00', sc: '-', desc: 'LUNCH (1 HOUR)', cast: 'ALL', loc: 'Catering' },
-                        { time: '14:00', sc: '15', desc: 'INT. LABORATORY. Dr. Aris reveals the coil.', cast: '4, 5', loc: 'Stage 2' },
-                        { time: '17:30', sc: '-', desc: 'WRAP', cast: 'ALL', loc: '-' },
-                      ].map((row, i) => (
-                        <TableRow key={i} className={row.desc.includes('LUNCH') ? 'bg-primary/5 font-bold' : ''}>
+                      {schedule.map((row, i) => (
+                        <TableRow key={i} className={row.desc.includes('LUNCH') ? 'bg-primary/5 font-bold' : 'group'}>
                           <TableCell className="font-mono text-xs outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.time}</TableCell>
                           <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.sc}</TableCell>
                           <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.desc}</TableCell>
                           <TableCell className="text-xs font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.cast}</TableCell>
                           <TableCell className="text-xs text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning>{row.loc}</TableCell>
+                          <TableCell className="text-right print:hidden">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => removeScheduleRow(i)}
+                            >
+                              <Trash2 size={12} />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
 
-                {/* Cast Call Times */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
