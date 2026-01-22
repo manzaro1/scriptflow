@@ -10,8 +10,9 @@ import {
   Download,
   Share2,
   Key,
-  Cpu,
-  Film
+  Film,
+  FileJson,
+  FileText
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { 
@@ -29,11 +30,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { showSuccess, showLoading, dismissToast } from "@/utils/toast";
+import { showSuccess, showLoading, dismissToast, showError } from "@/utils/toast";
 import StoryboardView, { StoryboardRow } from "./StoryboardView";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface ScriptBlock {
   id: string;
@@ -66,7 +75,6 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
     let currentSlug = "INT. UNKNOWN - DAY";
     let shotCount = 1;
 
-    // Analyze environment lighting from slugline
     const getLightingFromSlug = (slug: string) => {
       if (slug.toUpperCase().includes('NIGHT')) return 'Chiaroscuro / Neon Low Light';
       if (slug.toUpperCase().includes('EXT.')) return 'Natural High Contrast';
@@ -85,16 +93,13 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
       }
 
       if (block.type === 'action') {
-        // Look for emotional context in following dialogue or parentheticals
         const context = scriptBlocks.slice(index + 1, index + 5);
-        const emotionBlock = context.find(b => b.type === 'parenthetical' || b.type === 'dialogue');
         const dialogueBeat = context.find(b => b.type === 'dialogue')?.content || '[Ambient Action]';
         
         const shotTypes = ['W.S', 'M.S', 'C.U', 'O.T.S', 'E.C.U'];
         const angles = ['Normal Angle', 'Low Angle', 'High Angle', 'Dutch Angle'];
         const emotions = ['Tense', 'Melancholic', 'Suspenseful', 'Hopeful', 'Aggressive'];
 
-        // Determine specific cinematic parameters based on block keywords
         const isCloseUp = block.content.toLowerCase().match(/face|eyes|small|glowing|hand/);
         const isWide = block.content.toLowerCase().match(/skyline|city|room|landscape/);
 
@@ -130,22 +135,46 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
     }, 2000);
   };
 
-  const handleDownload = () => {
-    const toastId = showLoading("Exporting Production Blueprint...");
+  const handleExport = async (format: 'json' | 'pdf') => {
+    const toastId = showLoading(`Preparing ${format.toUpperCase()} export...`);
     
-    // Simulate generation of a PDF/Structured package
-    setTimeout(() => {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(storyboardData, null, 2));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `${scriptTitle.replace(/\s+/g, '_')}_Storyboard_Package.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
+    try {
+      if (format === 'json') {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(storyboardData, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `${scriptTitle.replace(/\s+/g, '_')}_Storyboard.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+      } else {
+        const element = document.getElementById('storyboard-blueprint');
+        if (!element) throw new Error("Storyboard element not found");
+        
+        const canvas = await html2canvas(element, {
+          useCORS: true,
+          scale: 2,
+          backgroundColor: '#0A0A0A'
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'px',
+          format: [canvas.width, canvas.height]
+        });
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`${scriptTitle.replace(/\s+/g, '_')}_Production_Blueprint.pdf`);
+      }
       
       dismissToast(toastId);
-      showSuccess("Production package downloaded successfully.");
-    }, 1500);
+      showSuccess(`${format.toUpperCase()} exported successfully`);
+    } catch (error) {
+      dismissToast(toastId);
+      showError("Export failed. Please try again.");
+      console.error("Export failed:", error);
+    }
   };
 
   const handleRegenerateShot = (id: string, newPrompt?: string) => {
@@ -255,10 +284,25 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle }
                 Refine Parameters
               </Button>
               <div className="flex gap-3">
-                <Button variant="outline" className="bg-transparent text-white border-white/20 hover:bg-white/10" onClick={handleDownload}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Package
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="bg-transparent text-white border-white/20 hover:bg-white/10">
+                      <Download className="mr-2 h-4 w-4" />
+                      Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-black border-white/10 text-white">
+                    <DropdownMenuItem onClick={() => handleExport('json')} className="hover:bg-white/10 cursor-pointer gap-2">
+                      <FileJson size={14} className="text-blue-400" />
+                      Download JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('pdf')} className="hover:bg-white/10 cursor-pointer gap-2">
+                      <FileText size={14} className="text-orange-400" />
+                      Download PDF Blueprint
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
                 <Button className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={() => showSuccess("Distribution link generated.")}>
                   <Share2 className="mr-2 h-4 w-4" />
                   Share with Crew
