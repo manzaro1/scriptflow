@@ -9,11 +9,11 @@ import {
   History,
   Download,
   Share2,
-  Key,
   Film,
   FileJson,
   FileText,
-  Monitor
+  Monitor,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { 
@@ -37,7 +37,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { showSuccess, showLoading, dismissToast, showError } from "@/utils/toast";
@@ -77,71 +76,7 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
   const [showResult, setShowResult] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-pro-vision');
   const [aspectRatio, setAspectRatio] = useState<'2.39:1' | '1.85:1' | '16:9'>('2.39:1');
-  const [apiKey, setApiKey] = useState("");
   const [storyboardData, setStoryboardData] = useState<StoryboardRow[]>([]);
-
-  const extractCinematicData = (): StoryboardRow[] => {
-    const extracted: StoryboardRow[] = [];
-    let currentSlug = "INT. UNKNOWN - DAY";
-    let shotCount = 1;
-
-    const getLightingFromSlug = (slug: string) => {
-      if (slug.toUpperCase().includes('NIGHT')) return 'Chiaroscuro / Neon Low Light';
-      if (slug.toUpperCase().includes('EXT.')) return 'Natural High Contrast';
-      return 'Diffused Practical Lighting';
-    };
-
-    const getColorGradeFromSlug = (slug: string) => {
-      if (slug.toUpperCase().includes('NIGHT')) return 'Teal & Orange / Cyberpunk';
-      if (slug.toUpperCase().includes('EXT.')) return 'Warm Golden Hour / Desaturated';
-      return 'Neutral Cinematic';
-    };
-
-    scriptBlocks.forEach((block, index) => {
-      if (block.type === 'slugline') {
-        currentSlug = block.content;
-      }
-
-      if (block.type === 'action') {
-        const context = scriptBlocks.slice(index + 1, index + 5);
-        const dialogueBeat = context.find(b => b.type === 'dialogue')?.content || '[Ambient Action]';
-        
-        const shotTypes = ['W.S', 'M.S', 'C.U', 'O.T.S', 'E.C.U'];
-        const movements = ['Static / Locked', 'Slow Dolly In', 'Lateral Tracking Shot', 'Handheld / Shaky', 'Crane Down'];
-        const angles = ['Normal Angle', 'Low Angle', 'High Angle', 'Dutch Angle'];
-        const emotions = ['Tense', 'Melancholic', 'Suspenseful', 'Hopeful', 'Aggressive'];
-        const lenses = ['14mm Ultra-Wide', '24mm Wide', '35mm Narrative', '50mm Prime', '85mm Portrait'];
-
-        const isCloseUp = block.content.toLowerCase().match(/face|eyes|small|glowing|hand/);
-        const isWide = block.content.toLowerCase().match(/skyline|city|room|landscape/);
-
-        const currentShotType = isCloseUp ? 'C.U' : (isWide ? 'W.S' : shotTypes[index % shotTypes.length]);
-        const currentLens = isCloseUp ? '85mm Portrait' : (isWide ? '14mm Ultra-Wide' : lenses[index % lenses.length]);
-
-        extracted.push({
-          id: block.id,
-          sceneTitle: currentSlug,
-          shotNumber: shotCount.toString().padStart(2, '0'),
-          shotType: currentShotType,
-          cameraAngle: angles[index % angles.length],
-          movement: movements[index % movements.length],
-          lens: currentLens,
-          emotion: emotions[index % emotions.length],
-          lighting: getLightingFromSlug(currentSlug),
-          colorGrade: getColorGradeFromSlug(currentSlug),
-          blockingNotes: `Actor enters from ${index % 2 === 0 ? 'Camera Left' : 'Camera Right'}. Maintain focus on foreground elements. Primary eye-line directed at mid-frame.`,
-          visualPrompt: `High-end cinematography, ${block.content}. lens: ${currentLens}. aspect: ${aspectRatio}. ${getColorGradeFromSlug(currentSlug)} palette. ${getLightingFromSlug(currentSlug)} lighting. Emotional tone: ${emotions[index % emotions.length]}. [Character Seed: Narrative Consistenty Active]`,
-          audioTag: dialogueBeat,
-          sfx: block.content.toLowerCase().includes('rain') ? 'Rain / Atmospheric Patter' : 'Dynamic Foley',
-          transition: index === 0 ? 'FADE IN' : 'CUT TO',
-          imageUrl: `https://images.unsplash.com/photo-${1550000000000 + (index * 123456)}?auto=format&fit=crop&q=80&w=1200`
-        });
-        shotCount++;
-      }
-    });
-
-    return extracted.slice(0, 15);
-  };
 
   const handleGenerate = async () => {
     if (!scriptId) {
@@ -150,35 +85,43 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
     }
     
     setIsGenerating(true);
-    const toastId = showLoading("Analyzing script and forging blueprint...");
+    const toastId = showLoading("Forging secure production blueprint...");
 
-    // 1. Simulate AI extraction
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const data = extractCinematicData();
-    
-    // 2. Save to Supabase
-    const { data: savedData, error } = await supabase
-      .from('storyboards')
-      .insert({
-        script_id: scriptId,
-        data: data, // The generated storyboard rows
-        aspect_ratio: aspectRatio,
-      })
-      .select()
-      .single();
+    try {
+      // Invoke the Supabase Edge Function instead of generating client-side
+      const { data: generatedData, error: funcError } = await supabase.functions.invoke('generate-storyboard', {
+        body: { 
+          scriptBlocks, 
+          aspectRatio, 
+          model: selectedModel 
+        }
+      });
 
-    dismissToast(toastId);
-    setIsGenerating(false);
+      if (funcError || !generatedData) {
+        throw new Error(funcError?.message || "Failed to generate storyboard data");
+      }
 
-    if (error) {
-      console.error("Supabase save error:", error);
-      showError("Failed to save storyboard blueprint.");
-      return;
+      // Save the result to the database
+      const { error: dbError } = await supabase
+        .from('storyboards')
+        .insert({
+          script_id: scriptId,
+          data: generatedData,
+          aspect_ratio: aspectRatio,
+        });
+
+      if (dbError) throw dbError;
+
+      setStoryboardData(generatedData);
+      setShowResult(true);
+      showSuccess(`Production Blueprint forged securely and saved.`);
+    } catch (error: any) {
+      console.error("Generation error:", error);
+      showError(error.message || "Failed to forge storyboard blueprint.");
+    } finally {
+      dismissToast(toastId);
+      setIsGenerating(false);
     }
-
-    setStoryboardData(data);
-    setShowResult(true);
-    showSuccess(`Production Blueprint forged and saved with ${aspectRatio} masking.`);
   };
 
   const handleExport = async (format: 'json' | 'pdf') => {
@@ -265,8 +208,8 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
                   Optics & Frame
                 </TabsTrigger>
                 <TabsTrigger value="engine" className="gap-2">
-                  <Key size={14} />
-                  Engine Config
+                  <ShieldCheck size={14} />
+                  Security & Engine
                 </TabsTrigger>
               </TabsList>
               
@@ -323,16 +266,15 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-3">
-                  <Label htmlFor="custom-key" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Provider API Key</Label>
-                  <Input 
-                    id="custom-key" 
-                    type="password" 
-                    placeholder="Enter key for HD generation..." 
-                    className="h-11"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                  />
+                
+                <div className="p-4 bg-green-50 border border-green-100 rounded-lg flex gap-3 items-start">
+                  <ShieldCheck size={18} className="text-green-600 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-green-800">Secure Generation Active</p>
+                    <p className="text-[10px] text-green-700 leading-relaxed mt-1">
+                      API keys are handled securely via Supabase Edge Functions. Your personal credentials are never exposed to the client browser.
+                    </p>
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>
@@ -392,11 +334,11 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
                 {isGenerating ? (
                   <>
                     <Loader2 size={18} className="animate-spin mr-2" />
-                    Extracting Production Data...
+                    Forging secure blueprint...
                   </>
                 ) : (
                   <>
-                    Forge Cinematic Blueprint
+                    Forge Secure Blueprint
                     <ArrowRight size={18} className="ml-2" />
                   </>
                 )}
