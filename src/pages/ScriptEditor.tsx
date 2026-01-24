@@ -15,7 +15,8 @@ import {
   Info,
   Edit2,
   Files,
-  Loader2
+  Loader2,
+  Lock
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +63,7 @@ const ScriptEditor = () => {
   const [scriptTitle, setScriptTitle] = useState("");
   const [scriptAuthor, setScriptAuthor] = useState("");
   const [blocks, setBlocks] = useState<ScriptBlock[]>([]);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -70,6 +72,8 @@ const ScriptEditor = () => {
     const fetchScript = async () => {
       if (!scriptId) return;
       
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase
         .from('scripts')
         .select('*')
@@ -77,11 +81,25 @@ const ScriptEditor = () => {
         .single();
       
       if (error) {
-        showError("Failed to load script");
+        showError("Failed to load script or access denied.");
       } else if (data) {
         setScriptTitle(data.title);
         setScriptAuthor(data.author);
         
+        // Check if user has edit permissions
+        if (data.user_id !== user?.id) {
+          const { data: collaborator } = await supabase
+            .from('script_collaborators')
+            .select('role')
+            .eq('script_id', scriptId)
+            .eq('user_id', user?.id)
+            .single();
+          
+          if (!collaborator || collaborator.role === 'viewer') {
+            setIsReadOnly(true);
+          }
+        }
+
         const loadedContent = Array.isArray(data.content) && data.content.length > 0 
           ? data.content 
           : [{ id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' }];
@@ -95,7 +113,7 @@ const ScriptEditor = () => {
   }, [scriptId]);
 
   useEffect(() => {
-    if (focusedBlockId && blockRefs.current[focusedBlockId]) {
+    if (focusedBlockId && blockRefs.current[focusedBlockId] && !isReadOnly) {
       const element = blockRefs.current[focusedBlockId];
       element?.focus();
       
@@ -108,14 +126,13 @@ const ScriptEditor = () => {
         sel?.addRange(range);
       }
     }
-  }, [focusedBlockId]);
+  }, [focusedBlockId, isReadOnly]);
 
   const handleSave = async () => {
-    if (!scriptId) return;
+    if (!scriptId || isReadOnly) return;
     setSaving(true);
     const toastId = showLoading("Saving changes...");
 
-    // Sanitize all content before sending to database
     const sanitizedBlocks = blocks.map(block => ({
       ...block,
       content: sanitizeInput(block.content)
@@ -157,6 +174,7 @@ const ScriptEditor = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
+    if (isReadOnly) return;
     const block = blocks[index];
 
     if (e.key === 'Tab') {
@@ -193,6 +211,7 @@ const ScriptEditor = () => {
   };
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>, index: number) => {
+    if (isReadOnly) return;
     let content = e.currentTarget.innerText;
     const newBlocks = [...blocks];
     let type = newBlocks[index].type;
@@ -219,13 +238,14 @@ const ScriptEditor = () => {
   };
 
   const getBlockStyles = (type: ElementType) => {
-    const base = "outline-none transition-all duration-150 min-h-[1.5em] focus:bg-primary/5 rounded px-1 whitespace-pre-wrap";
+    const base = "outline-none transition-all duration-150 min-h-[1.5em] rounded px-1 whitespace-pre-wrap";
+    const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     switch (type) {
-      case 'character': return cn(base, "text-center uppercase font-bold w-[50%] mx-auto mb-1 mt-6");
-      case 'dialogue': return cn(base, "text-center w-[65%] mx-auto mb-4 relative group");
-      case 'parenthetical': return cn(base, "text-center w-[40%] mx-auto italic text-sm mb-1 before:content-['('] after:content-[')']");
-      case 'slugline': return cn(base, "uppercase font-bold mb-4 mt-8");
-      default: return cn(base, "mb-4 text-left");
+      case 'character': return cn(base, editClass, "text-center uppercase font-bold w-[50%] mx-auto mb-1 mt-6");
+      case 'dialogue': return cn(base, editClass, "text-center w-[65%] mx-auto mb-4 relative group");
+      case 'parenthetical': return cn(base, editClass, "text-center w-[40%] mx-auto italic text-sm mb-1 before:content-['('] after:content-[')']");
+      case 'slugline': return cn(base, editClass, "uppercase font-bold mb-4 mt-8");
+      default: return cn(base, editClass, "mb-4 text-left");
     }
   };
 
@@ -262,14 +282,15 @@ const ScriptEditor = () => {
             <ArrowLeft size={20} />
           </Button>
           <div className="h-4 w-px bg-border" />
-          <div className="flex flex-col group cursor-pointer" onClick={() => setIsRenameModal(true)}>
+          <div className="flex flex-col group cursor-pointer" onClick={() => !isReadOnly && setIsRenameModal(true)}>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold">{scriptTitle || "Untitled"}</span>
-              <Edit2 size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              {!isReadOnly && <Edit2 size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+              {isReadOnly && <Lock size={12} className="text-muted-foreground" />}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Draft</span>
-              {focusedBlockId && (
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{isReadOnly ? 'Read Only' : 'Draft'}</span>
+              {focusedBlockId && !isReadOnly && (
                 <Badge variant="outline" className="bg-primary/5 text-primary text-[9px] font-bold uppercase py-0 px-1.5 h-4 border-primary/20">
                   {blocks.find(b => b.id === focusedBlockId)?.type} Mode
                 </Badge>
@@ -306,17 +327,19 @@ const ScriptEditor = () => {
             <span className="hidden sm:inline">Overseer</span>
           </Button>
           
-          <ShareScriptModal>
+          <ShareScriptModal scriptId={scriptId || ''}>
             <Button variant="outline" size="sm" className="gap-2 h-8">
               <Share2 size={16} />
               <span className="hidden sm:inline">Share</span>
             </Button>
           </ShareScriptModal>
 
-          <Button size="sm" className="gap-2 h-8" onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            <span className="hidden sm:inline">Save</span>
-          </Button>
+          {!isReadOnly && (
+            <Button size="sm" className="gap-2 h-8" onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              <span className="hidden sm:inline">Save</span>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -347,11 +370,28 @@ const ScriptEditor = () => {
         </aside>
 
         <main className="flex-1 overflow-y-auto p-12 flex justify-center bg-muted/30">
-          <div className="w-[850px] min-h-[1100px] bg-white dark:bg-slate-50 text-black shadow-xl p-[80px] font-['Courier_Prime',monospace] text-[12pt] leading-tight cursor-text relative">
+          <div className={cn(
+            "w-[850px] min-h-[1100px] bg-white dark:bg-slate-50 text-black shadow-xl p-[80px] font-['Courier_Prime',monospace] text-[12pt] leading-tight relative",
+            isReadOnly ? "cursor-default" : "cursor-text"
+          )}>
             <div className="text-center mb-12 uppercase">
-              <h1 className="text-2xl font-bold outline-none focus:bg-primary/5 rounded px-2" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptTitle(sanitizeInput(e.currentTarget.innerText))}>{scriptTitle.toUpperCase()}</h1>
+              <h1 
+                className={cn("text-2xl font-bold rounded px-2 outline-none", !isReadOnly && "focus:bg-primary/5")} 
+                contentEditable={!isReadOnly} 
+                suppressContentEditableWarning 
+                onBlur={(e) => !isReadOnly && setScriptTitle(sanitizeInput(e.currentTarget.innerText))}
+              >
+                {scriptTitle.toUpperCase()}
+              </h1>
               <p className="mt-2 text-sm">Written by</p>
-              <p className="mt-1 outline-none focus:bg-primary/5 rounded px-2 min-w-[100px] inline-block" contentEditable suppressContentEditableWarning onBlur={(e) => setScriptAuthor(sanitizeInput(e.currentTarget.innerText))}>{scriptAuthor}</p>
+              <p 
+                className={cn("mt-1 rounded px-2 min-w-[100px] inline-block outline-none", !isReadOnly && "focus:bg-primary/5")} 
+                contentEditable={!isReadOnly} 
+                suppressContentEditableWarning 
+                onBlur={(e) => !isReadOnly && setScriptAuthor(sanitizeInput(e.currentTarget.innerText))}
+              >
+                {scriptAuthor}
+              </p>
             </div>
 
             <div className="space-y-0">
@@ -359,7 +399,7 @@ const ScriptEditor = () => {
                 <div
                   key={block.id}
                   ref={el => blockRefs.current[block.id] = el}
-                  contentEditable
+                  contentEditable={!isReadOnly}
                   suppressContentEditableWarning
                   className={getBlockStyles(block.type)}
                   onKeyDown={(e) => handleKeyDown(e, index)}
@@ -367,7 +407,7 @@ const ScriptEditor = () => {
                   onFocus={() => setFocusedBlockId(block.id)}
                 >
                   {renderBlockContent(block)}
-                  {block.type === 'dialogue' && (
+                  {block.type === 'dialogue' && !isReadOnly && (
                     <DialogueFeedback 
                       characterName={getCharacterForDialogue(index)}
                       dialogue={block.content}

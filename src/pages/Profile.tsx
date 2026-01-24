@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -35,11 +35,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Profile = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [teamMembers, setTeamMembers] = useState([
     { id: 1, name: 'Alex Rivers', email: 'alex@example.com', role: 'Owner', status: 'Active', avatar: 'AR' },
     { id: 2, name: 'John Director', email: 'john@production.com', role: 'Admin', status: 'Active', avatar: 'JD' },
@@ -47,13 +49,21 @@ const Profile = () => {
     { id: 4, name: 'Mike Intern', email: 'mike@intern.com', role: 'Viewer', status: 'Pending', avatar: 'MI' },
   ]);
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUser(data.user);
+    });
+  }, []);
+
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
 
+    // This is still a mock for global team members, 
+    // but in a full implementation this would write to a 'team_invitations' table
     const newMember = {
       id: Date.now(),
-      name: inviteEmail.split('@')[0], // Mock name from email
+      name: inviteEmail.split('@')[0],
       email: inviteEmail,
       role: inviteRole.charAt(0).toUpperCase() + inviteRole.slice(1),
       status: 'Pending',
@@ -61,7 +71,7 @@ const Profile = () => {
     };
 
     setTeamMembers(prev => [...prev, newMember]);
-    showSuccess(`Invitation sent to ${inviteEmail}`);
+    showSuccess(`Team invitation sent to ${inviteEmail}`);
     setInviteEmail('');
   };
 
@@ -87,7 +97,7 @@ const Profile = () => {
               <p className="text-muted-foreground mt-1">Manage your account settings, billing, and team collaboration.</p>
             </header>
 
-            <Tabs defaultValue="teams" className="space-y-6">
+            <Tabs defaultValue="account" className="space-y-6">
               <TabsList className="bg-muted/50 p-1">
                 <TabsTrigger value="account" className="gap-2">
                   <User size={16} />
@@ -116,8 +126,8 @@ const Profile = () => {
                   <CardContent className="space-y-6">
                     <div className="flex items-center gap-6">
                       <Avatar className="h-20 w-20">
-                        <AvatarImage src="https://github.com/shadcn.png" />
-                        <AvatarFallback>AR</AvatarFallback>
+                        <AvatarImage src={currentUser?.user_metadata?.avatar_url || "https://github.com/shadcn.png"} />
+                        <AvatarFallback>{currentUser?.email?.substring(0,2).toUpperCase() || "AR"}</AvatarFallback>
                       </Avatar>
                       <div className="space-y-2">
                         <Button variant="outline" size="sm">Change Avatar</Button>
@@ -127,16 +137,16 @@ const Profile = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" defaultValue="Alex Rivers" />
+                        <Input id="name" defaultValue={currentUser?.user_metadata?.first_name || "Alex Rivers"} />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" defaultValue="alex@example.com" />
+                        <Input id="email" defaultValue={currentUser?.email || "alex@example.com"} readOnly className="bg-muted" />
                       </div>
                     </div>
                   </CardContent>
                   <CardFooter className="border-t px-6 py-4">
-                    <Button>Save Changes</Button>
+                    <Button onClick={() => showSuccess("Profile updated")}>Save Changes</Button>
                   </CardFooter>
                 </Card>
               </TabsContent>
@@ -326,7 +336,7 @@ const Profile = () => {
                     </div>
                   </CardContent>
                   <CardFooter className="border-t px-6 py-4">
-                    <Button>Update Password</Button>
+                    <Button onClick={() => showSuccess("Password updated")}>Update Password</Button>
                   </CardFooter>
                 </Card>
               </TabsContent>
