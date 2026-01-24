@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles, FileText, Edit3, Loader2 } from 'lucide-react';
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 import ScriptUpload from "./ScriptUpload";
 
 const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, onComplete?: () => void }) => {
@@ -37,6 +38,7 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
   // Script form state
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('Alex Rivers');
+  const [genre, setGenre] = useState('sci-fi');
   
   // Character form state
   const [charName, setCharName] = useState('');
@@ -67,23 +69,50 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
   const handleCreate = async () => {
     setIsCreating(true);
     
-    // --- Simulate Supabase Script Creation ---
-    await new Promise(resolve => setTimeout(resolve, 1500)); 
-    
-    const message = creationMode === 'upload' 
-      ? `Script imported from "${uploadedFile?.name}" with AI character profiles synchronized.`
-      : `Script "${title || 'Untitled'}" by ${author} created successfully.`;
-    
-    showSuccess(message);
-    
-    if (onComplete) onComplete();
-    
-    setIsCreating(false);
-    setIsOpen(false);
-    setStep(1);
-    setCharacters([]);
-    setUploadedFile(null);
-    setTitle('');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        showError("You must be logged in to create a script.");
+        setIsCreating(false);
+        return;
+      }
+
+      // Initial script content
+      const initialContent = [
+        { id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' },
+        { id: '2', type: 'action', content: 'The story begins here...' }
+      ];
+
+      const { error } = await supabase
+        .from('scripts')
+        .insert({
+          user_id: user.id,
+          title: title || 'Untitled Screenplay',
+          author: author || 'Anonymous',
+          genre: genre,
+          content: initialContent,
+          status: 'Draft'
+        });
+
+      if (error) throw error;
+
+      showSuccess(creationMode === 'upload' 
+        ? `Script imported from "${uploadedFile?.name}" successfully.`
+        : `Script "${title || 'Untitled'}" created successfully.`);
+      
+      if (onComplete) onComplete();
+      
+      setIsOpen(false);
+      setStep(1);
+      setCharacters([]);
+      setUploadedFile(null);
+      setTitle('');
+    } catch (err: any) {
+      showError(err.message || "Failed to create script");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -156,7 +185,7 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="genre">Genre</Label>
-                    <Select>
+                    <Select value={genre} onValueChange={setGenre}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select genre" />
                       </SelectTrigger>

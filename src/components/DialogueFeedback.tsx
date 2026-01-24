@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { AlertTriangle, Sparkles, MessageSquare, Check } from 'lucide-react';
+import { AlertTriangle, Sparkles, MessageSquare, Check, BrainCircuit } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Popover,
