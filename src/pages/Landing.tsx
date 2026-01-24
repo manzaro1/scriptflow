@@ -32,7 +32,6 @@ const Landing = () => {
   };
 
   if (loading) {
-    // Optionally render a minimal loader or just null while checking session
     return null;
   }
 
