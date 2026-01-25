@@ -19,10 +19,16 @@ const AuthPage = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Determine the absolute redirect URL
-  const absoluteRedirectTo = typeof window !== 'undefined' 
-    ? window.location.origin + '/dashboard' 
-    : undefined;
+  // Explicitly determine the redirect URL to prevent localhost fallbacks in production
+  const getRedirectUrl = () => {
+    if (typeof window === 'undefined') return undefined;
+    
+    // Use the current origin, which will be the Vercel URL when deployed
+    const origin = window.location.origin;
+    return `${origin}/dashboard`;
+  };
+
+  const redirectTo = getRedirectUrl();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
@@ -55,7 +61,8 @@ const AuthPage = () => {
             }}
             theme="light"
             providers={['github', 'google']}
-            redirectTo={absoluteRedirectTo}
+            redirectTo={redirectTo}
+            onlyThirdPartyProviders={false}
           />
         </CardContent>
       </Card>
