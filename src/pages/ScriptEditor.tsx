@@ -115,15 +115,17 @@ const ScriptEditor = () => {
   useEffect(() => {
     if (focusedBlockId && blockRefs.current[focusedBlockId] && !isReadOnly) {
       const element = blockRefs.current[focusedBlockId];
-      element?.focus();
-      
-      const range = document.createRange();
-      const sel = window.getSelection();
-      if (element?.childNodes.length) {
-        range.setStart(element.childNodes[0], element.innerText.length);
-        range.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(range);
+      if (document.activeElement !== element) {
+        element?.focus();
+        
+        const range = document.createRange();
+        const sel = window.getSelection();
+        if (element?.childNodes.length) {
+          range.setStart(element.childNodes[0], element.innerText.length);
+          range.collapse(true);
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
       }
     }
   }, [focusedBlockId, isReadOnly]);
@@ -242,8 +244,8 @@ const ScriptEditor = () => {
     const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     switch (type) {
       case 'character': return cn(base, editClass, "text-center uppercase font-bold w-[50%] mx-auto mb-1 mt-6");
-      case 'dialogue': return cn(base, editClass, "text-center w-[65%] mx-auto mb-4 relative group");
-      case 'parenthetical': return cn(base, editClass, "text-center w-[40%] mx-auto italic text-sm mb-1 before:content-['('] after:content-[')']");
+      case 'dialogue': return cn(base, editClass, "text-center w-[65%] mx-auto mb-4");
+      case 'parenthetical': return cn(base, editClass, "text-center w-[40%] mx-auto italic text-sm mb-1");
       case 'slugline': return cn(base, editClass, "uppercase font-bold mb-4 mt-8");
       default: return cn(base, editClass, "mb-4 text-left");
     }
@@ -251,7 +253,10 @@ const ScriptEditor = () => {
 
   const renderBlockContent = (block: ScriptBlock) => {
     if (block.type === 'parenthetical') {
-      return block.content.replace(/^\(|\)$/g, '');
+      let content = block.content;
+      if (content && !content.startsWith('(')) content = '(' + content;
+      if (content && !content.endsWith(')')) content = content + ')';
+      return content;
     }
     return block.content;
   };
@@ -396,17 +401,20 @@ const ScriptEditor = () => {
 
             <div className="space-y-0">
               {blocks.map((block, index) => (
-                <div
-                  key={block.id}
-                  ref={el => blockRefs.current[block.id] = el}
-                  contentEditable={!isReadOnly}
-                  suppressContentEditableWarning
-                  className={getBlockStyles(block.type)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
-                  onInput={(e) => handleInput(e, index)}
-                  onFocus={() => setFocusedBlockId(block.id)}
-                >
-                  {renderBlockContent(block)}
+                <div key={block.id} className="relative group">
+                  <div
+                    ref={el => blockRefs.current[block.id] = el}
+                    contentEditable={!isReadOnly}
+                    suppressContentEditableWarning
+                    className={getBlockStyles(block.type)}
+                    onKeyDown={(e) => handleKeyDown(e, index)}
+                    onInput={(e) => handleInput(e, index)}
+                    onFocus={() => setFocusedBlockId(block.id)}
+                  >
+                    {renderBlockContent(block)}
+                  </div>
+                  
+                  {/* Separate AI Overlay to prevent contentEditable conflicts */}
                   {block.type === 'dialogue' && !isReadOnly && (
                     <DialogueFeedback 
                       characterName={getCharacterForDialogue(index)}
