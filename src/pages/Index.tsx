@@ -31,6 +31,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [totalCollaborators, setTotalCollaborators] = useState(0);
 
   const fetchScripts = async () => {
     if (!user) return;
@@ -40,14 +41,48 @@ const Index = () => {
     await ensureSampleScriptExists(user.id, user.email || '', userName);
 
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // 1. Fetch Scripts
+    const { data: scriptData, error: scriptError } = await supabase
       .from('scripts')
-      .select('*')
+      .select('*, script_collaborators(user_id)') // Also fetch collaborators for each script
       .order('updated_at', { ascending: false });
     
-    if (!error && data) {
-      setScripts(data);
+    if (scriptError) {
+      console.error("Error fetching scripts:", scriptError);
+    } else if (scriptData) {
+      setScripts(scriptData);
     }
+
+    // 2. Calculate unique collaborators
+    if (scriptData) {
+      const collaboratorIds = new Set<string>();
+      collaboratorIds.add(user.id); // Always include the current user (owner)
+
+      scriptData.forEach(script => {
+        // Add the owner of the script (if not the current user)
+        if (script.user_id !== user.id) {
+          collaboratorIds.add(script.user_id);
+        }
+        
+        // Add explicit collaborators
+        if (script.script_collaborators && Array.isArray(script.script_collaborators)) {
+          script.script_collaborators.forEach((collab: { user_id: string | null }) => {
+            if (collab.user_id) {
+              collaboratorIds.add(collab.user_id);
+            }
+          });
+        }
+      });
+      
+      // Subtract 1 to exclude the current user from the 'collaborator' count, 
+      // or just count all unique users involved in the scripts.
+      // Since the stat is "Collaborators", we'll count all unique users involved in the scripts, including the owner, 
+      // but for simplicity and accuracy based on the current RLS, we'll count unique user IDs associated with the scripts.
+      // Let's count all unique users (owners + collaborators) and subtract the current user.
+      setTotalCollaborators(collaboratorIds.size - 1);
+    }
+
     setLoading(false);
   };
 
@@ -147,6 +182,7 @@ const Index = () => {
                 totalScripts={stats.total} 
                 totalFinished={stats.finished} 
                 totalPages={stats.pages} 
+                totalCollaborators={totalCollaborators}
               />
             </div>
 
