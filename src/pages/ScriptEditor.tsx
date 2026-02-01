@@ -73,6 +73,24 @@ const ScriptEditor = () => {
       if (!scriptId) return;
       
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check for pending invitations and join if found
+      const { data: collabInvite } = await supabase
+        .from('script_collaborators')
+        .select('*')
+        .eq('script_id', scriptId)
+        .eq('email', user.email?.toLowerCase())
+        .is('user_id', null)
+        .maybeSingle();
+
+      if (collabInvite) {
+        await supabase
+          .from('script_collaborators')
+          .update({ user_id: user.id, joined_at: new Date().toISOString() })
+          .eq('id', collabInvite.id);
+        showSuccess("You have joined this script as a collaborator.");
+      }
       
       const { data, error } = await supabase
         .from('scripts')
@@ -86,14 +104,14 @@ const ScriptEditor = () => {
         setScriptTitle(data.title);
         setScriptAuthor(data.author);
         
-        // Check if user has edit permissions
+        // Determine role
         if (data.user_id !== user?.id) {
           const { data: collaborator } = await supabase
             .from('script_collaborators')
             .select('role')
             .eq('script_id', scriptId)
             .eq('user_id', user?.id)
-            .single();
+            .maybeSingle();
           
           if (!collaborator || collaborator.role === 'viewer') {
             setIsReadOnly(true);
@@ -414,7 +432,6 @@ const ScriptEditor = () => {
                     {renderBlockContent(block)}
                   </div>
                   
-                  {/* Separate AI Overlay to prevent contentEditable conflicts */}
                   {block.type === 'dialogue' && !isReadOnly && (
                     <DialogueFeedback 
                       characterName={getCharacterForDialogue(index)}
