@@ -36,13 +36,13 @@ const Index = () => {
   const fetchScripts = async () => {
     if (!user) return;
     
-    // Ensure sample script exists before fetching the list
+    setLoading(true);
+    
+    // 1. Ensure sample script exists (this will insert if count is 0)
     const userName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Anonymous';
     await ensureSampleScriptExists(user.id, user.email || '', userName);
 
-    setLoading(true);
-    
-    // 1. Fetch Scripts
+    // 2. Fetch Scripts and Collaborators
     const { data: scriptData, error: scriptError } = await supabase
       .from('scripts')
       .select('*, script_collaborators(user_id)') // Also fetch collaborators for each script
@@ -52,20 +52,16 @@ const Index = () => {
       console.error("Error fetching scripts:", scriptError);
     } else if (scriptData) {
       setScripts(scriptData);
-    }
-
-    // 2. Calculate unique collaborators
-    if (scriptData) {
+      
+      // 3. Calculate unique collaborators
       const collaboratorIds = new Set<string>();
       collaboratorIds.add(user.id); // Always include the current user (owner)
 
       scriptData.forEach(script => {
-        // Add the owner of the script (if not the current user)
         if (script.user_id !== user.id) {
           collaboratorIds.add(script.user_id);
         }
         
-        // Add explicit collaborators
         if (script.script_collaborators && Array.isArray(script.script_collaborators)) {
           script.script_collaborators.forEach((collab: { user_id: string | null }) => {
             if (collab.user_id) {
@@ -75,12 +71,8 @@ const Index = () => {
         }
       });
       
-      // Subtract 1 to exclude the current user from the 'collaborator' count, 
-      // or just count all unique users involved in the scripts.
-      // Since the stat is "Collaborators", we'll count all unique users involved in the scripts, including the owner, 
-      // but for simplicity and accuracy based on the current RLS, we'll count unique user IDs associated with the scripts.
-      // Let's count all unique users (owners + collaborators) and subtract the current user.
-      setTotalCollaborators(collaboratorIds.size - 1);
+      // Count unique users involved, excluding the current user if they are the only one.
+      setTotalCollaborators(collaboratorIds.size > 0 ? collaboratorIds.size - 1 : 0);
     }
 
     setLoading(false);
