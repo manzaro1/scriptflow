@@ -73,24 +73,6 @@ const ScriptEditor = () => {
       if (!scriptId) return;
       
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Check for pending invitations and join if found
-      const { data: collabInvite } = await supabase
-        .from('script_collaborators')
-        .select('*')
-        .eq('script_id', scriptId)
-        .eq('email', user.email?.toLowerCase())
-        .is('user_id', null)
-        .maybeSingle();
-
-      if (collabInvite) {
-        await supabase
-          .from('script_collaborators')
-          .update({ user_id: user.id, joined_at: new Date().toISOString() })
-          .eq('id', collabInvite.id);
-        showSuccess("You have joined this script as a collaborator.");
-      }
       
       const { data, error } = await supabase
         .from('scripts')
@@ -104,14 +86,14 @@ const ScriptEditor = () => {
         setScriptTitle(data.title);
         setScriptAuthor(data.author);
         
-        // Determine role
+        // Check if user has edit permissions
         if (data.user_id !== user?.id) {
           const { data: collaborator } = await supabase
             .from('script_collaborators')
             .select('role')
             .eq('script_id', scriptId)
             .eq('user_id', user?.id)
-            .maybeSingle();
+            .single();
           
           if (!collaborator || collaborator.role === 'viewer') {
             setIsReadOnly(true);
@@ -133,17 +115,15 @@ const ScriptEditor = () => {
   useEffect(() => {
     if (focusedBlockId && blockRefs.current[focusedBlockId] && !isReadOnly) {
       const element = blockRefs.current[focusedBlockId];
-      if (document.activeElement !== element) {
-        element?.focus();
-        
-        const range = document.createRange();
-        const sel = window.getSelection();
-        if (element?.childNodes.length) {
-          range.setStart(element.childNodes[0], element.innerText.length);
-          range.collapse(true);
-          sel?.removeAllRanges();
-          sel?.addRange(range);
-        }
+      element?.focus();
+      
+      const range = document.createRange();
+      const sel = window.getSelection();
+      if (element?.childNodes.length) {
+        range.setStart(element.childNodes[0], element.innerText.length);
+        range.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
       }
     }
   }, [focusedBlockId, isReadOnly]);
@@ -262,8 +242,8 @@ const ScriptEditor = () => {
     const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     switch (type) {
       case 'character': return cn(base, editClass, "text-center uppercase font-bold w-[50%] mx-auto mb-1 mt-6");
-      case 'dialogue': return cn(base, editClass, "text-center w-[65%] mx-auto mb-4");
-      case 'parenthetical': return cn(base, editClass, "text-center w-[40%] mx-auto italic text-sm mb-1");
+      case 'dialogue': return cn(base, editClass, "text-center w-[65%] mx-auto mb-4 relative group");
+      case 'parenthetical': return cn(base, editClass, "text-center w-[40%] mx-auto italic text-sm mb-1 before:content-['('] after:content-[')']");
       case 'slugline': return cn(base, editClass, "uppercase font-bold mb-4 mt-8");
       default: return cn(base, editClass, "mb-4 text-left");
     }
@@ -271,10 +251,7 @@ const ScriptEditor = () => {
 
   const renderBlockContent = (block: ScriptBlock) => {
     if (block.type === 'parenthetical') {
-      let content = block.content;
-      if (content && !content.startsWith('(')) content = '(' + content;
-      if (content && !content.endsWith(')')) content = content + ')';
-      return content;
+      return block.content.replace(/^\(|\)$/g, '');
     }
     return block.content;
   };
@@ -419,19 +396,17 @@ const ScriptEditor = () => {
 
             <div className="space-y-0">
               {blocks.map((block, index) => (
-                <div key={block.id} className="relative group">
-                  <div
-                    ref={el => blockRefs.current[block.id] = el}
-                    contentEditable={!isReadOnly}
-                    suppressContentEditableWarning
-                    className={getBlockStyles(block.type)}
-                    onKeyDown={(e) => handleKeyDown(e, index)}
-                    onInput={(e) => handleInput(e, index)}
-                    onFocus={() => setFocusedBlockId(block.id)}
-                  >
-                    {renderBlockContent(block)}
-                  </div>
-                  
+                <div
+                  key={block.id}
+                  ref={el => blockRefs.current[block.id] = el}
+                  contentEditable={!isReadOnly}
+                  suppressContentEditableWarning
+                  className={getBlockStyles(block.type)}
+                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  onInput={(e) => handleInput(e, index)}
+                  onFocus={() => setFocusedBlockId(block.id)}
+                >
+                  {renderBlockContent(block)}
                   {block.type === 'dialogue' && !isReadOnly && (
                     <DialogueFeedback 
                       characterName={getCharacterForDialogue(index)}
