@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -14,38 +14,63 @@ import {
   Download,
   Printer,
   Sparkles,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 
-// Reusing the mock blocks from the editor for consistency
-const MOCK_BLOCKS = [
-  { id: '1', type: 'slugline', content: 'EXT. SKYLINE - NIGHT' },
-  { id: '2', type: 'action', content: 'Rain hammers against the metallic skin of the city. Kai pulls a small, glowing COIL from his pocket.' },
-  { id: '3', type: 'character', content: 'KAI' },
-  { id: '5', type: 'dialogue', content: "This wasn't part of the deal." },
-  { id: '6', type: 'slugline', content: 'INT. HANGAR - DAY' },
-  { id: '7', type: 'action', content: 'Sara checks the CRATE. It is heavy, marked with a RED SEAL.' },
-  { id: '8', type: 'character', content: 'SARA' },
-  { id: '9', type: 'dialogue', content: "It's all here, Kai. The blueprints too." },
-  { id: '10', type: 'character', content: 'KAI' },
-  { id: '11', type: 'dialogue', content: "Good. We move at dawn." },
-];
+interface ScriptBlock {
+  id: string;
+  type: 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
+  content: string;
+}
 
 const SceneBreakdown = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const scriptId = searchParams.get('script') || '1';
+  const scriptId = searchParams.get('script');
+
+  const [scriptTitle, setScriptTitle] = useState("Loading Script...");
+  const [blocks, setBlocks] = useState<ScriptBlock[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchScript = async () => {
+      if (!scriptId) {
+        showError("No script selected for breakdown.");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('scripts')
+        .select('title, content')
+        .eq('id', scriptId)
+        .single();
+
+      if (error) {
+        showError("Failed to load script content.");
+        console.error(error);
+      } else if (data) {
+        setScriptTitle(data.title);
+        setBlocks(data.content as ScriptBlock[]);
+      }
+      setLoading(false);
+    };
+
+    fetchScript();
+  }, [scriptId]);
 
   const breakdown = useMemo(() => {
     const scenes: any[] = [];
     let currentScene: any = null;
 
-    MOCK_BLOCKS.forEach((block) => {
+    blocks.forEach((block) => {
       if (block.type === 'slugline') {
         if (currentScene) scenes.push(currentScene);
         currentScene = {
@@ -67,7 +92,7 @@ const SceneBreakdown = () => {
           const words = block.content.match(/[A-Z]{2,}/g);
           if (words) {
             words.forEach((word: string) => {
-              if (word !== 'EXT' && word !== 'INT') {
+              if (word !== 'EXT' && word !== 'INT' && word !== 'DAY' && word !== 'NIGHT' && word !== 'CONTINUOUS') {
                 currentScene.props.add(word);
               }
             });
@@ -78,7 +103,17 @@ const SceneBreakdown = () => {
 
     if (currentScene) scenes.push(currentScene);
     return scenes;
-  }, []);
+  }, [blocks]);
+
+  if (loading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  const totalCast = new Set(breakdown.flatMap(s => Array.from(s.cast))).size;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -94,7 +129,7 @@ const SceneBreakdown = () => {
                 </Button>
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight">Scene Breakdown</h1>
-                  <p className="text-muted-foreground mt-1">Automated production analysis for "The Neon Horizon"</p>
+                  <p className="text-muted-foreground mt-1">Automated production analysis for "{scriptTitle}"</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -124,7 +159,7 @@ const SceneBreakdown = () => {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">
-                      {new Set(breakdown.flatMap(s => Array.from(s.cast))).size}
+                      {totalCast}
                     </p>
                     <p className="text-[10px] text-muted-foreground uppercase font-bold">Cast Members</p>
                   </div>
@@ -134,58 +169,62 @@ const SceneBreakdown = () => {
                       <span className="text-[10px] font-black uppercase">AI Extraction</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Automatically identifying props like **COIL**, **CRATE**, and **SEAL** from narrative context.
+                      Automatically identifying props and elements from narrative context.
                     </p>
                   </div>
                 </CardContent>
               </Card>
 
               <div className="md:col-span-3 space-y-4">
-                {breakdown.map((scene, index) => (
-                  <Card key={scene.id} className="group hover:border-primary/50 transition-colors">
-                    <CardHeader className="p-4 bg-muted/50 border-b flex flex-row items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-bold text-sm">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <CardTitle className="text-sm font-bold uppercase tracking-tight">{scene.location}</CardTitle>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="bg-background">Scene {index + 1}</Badge>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
-                        <div className="p-4 space-y-3">
-                          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                            <Users size={16} />
-                            <h4 className="text-[10px] font-black uppercase tracking-widest">Cast Needed</h4>
+                {breakdown.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">No scenes found in script.</div>
+                ) : (
+                  breakdown.map((scene, index) => (
+                    <Card key={scene.id} className="group hover:border-primary/50 transition-colors">
+                      <CardHeader className="p-4 bg-muted/50 border-b flex flex-row items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-bold text-sm">
+                            {index + 1}
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {Array.from(scene.cast).map((actor: any) => (
-                              <Badge key={actor} variant="secondary" className="font-bold">{actor}</Badge>
-                            ))}
-                            {scene.cast.size === 0 && <span className="text-xs text-muted-foreground italic">No cast identified</span>}
+                          <div>
+                            <CardTitle className="text-sm font-bold uppercase tracking-tight">{scene.location}</CardTitle>
                           </div>
                         </div>
-                        <div className="p-4 space-y-3">
-                          <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
-                            <Package size={16} />
-                            <h4 className="text-[10px] font-black uppercase tracking-widest">Props / Set Items</h4>
+                        <Badge variant="outline" className="bg-background">Scene {index + 1}</Badge>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+                          <div className="p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                              <Users size={16} />
+                              <h4 className="text-[10px] font-black uppercase tracking-widest">Cast Needed</h4>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {Array.from(scene.cast).map((actor: any) => (
+                                <Badge key={actor} variant="secondary" className="font-bold">{actor}</Badge>
+                              ))}
+                              {scene.cast.size === 0 && <span className="text-xs text-muted-foreground italic">No cast identified</span>}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {Array.from(scene.props).map((prop: any) => (
-                              <Badge key={prop} variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
-                                {prop}
-                              </Badge>
-                            ))}
-                            {scene.props.size === 0 && <span className="text-xs text-muted-foreground italic">No props identified</span>}
+                          <div className="p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                              <Package size={16} />
+                              <h4 className="text-[10px] font-black uppercase tracking-widest">Props / Set Items</h4>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {Array.from(scene.props).map((prop: any) => (
+                                <Badge key={prop} variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
+                                  {prop}
+                                </Badge>
+                              ))}
+                              {scene.props.size === 0 && <span className="text-xs text-muted-foreground italic">No props identified</span>}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </div>
             </div>
           </div>

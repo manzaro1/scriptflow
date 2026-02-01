@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { sanitizeInput } from "@/utils/security";
+import { supabase } from "@/integrations/supabase/client";
 
 const SCRIPTS = [
   { id: "1", title: "The Neon Horizon" },
@@ -41,34 +43,87 @@ const SCRIPTS = [
   { id: "5", title: "The Last Heist" }
 ];
 
-const MOCK_CAST_DATA = [
+const DEFAULT_CAST_DATA = [
   { id: 1, name: 'John Actor', role: 'KAI', call: '06:00' },
   { id: 2, name: 'Sarah Star', role: 'SARA', call: '08:30' },
   { id: 3, name: 'Mike Talent', role: 'VEO', call: '09:00' },
-  { id: 4, name: 'Elena Pro', role: 'DR. ARIS', call: '13:30' },
 ];
 
-const INITIAL_SCHEDULE = [
-  { time: '08:00', sc: '12', desc: 'EXT. SKYLINE - NIGHT. Kai watches the rain.', cast: '1', loc: 'Stage 4' },
-  { time: '10:30', sc: '14A', desc: 'INT. HANGAR - DAY. Arrival of the shipment.', cast: '1, 2, 4', loc: 'Stage 4' },
+const DEFAULT_SCHEDULE = [
+  { time: '08:00', sc: '12', desc: 'EXT. RAIN-SLICKED ALLEY - NIGHT. Jax meets Vera.', cast: '1, 2', loc: 'Stage 4' },
+  { time: '10:30', sc: '14A', desc: 'INT. UNDERGROUND HUB - CONTINUOUS. Confrontation.', cast: '1, 2', loc: 'Stage 4' },
   { time: '13:00', sc: '-', desc: 'LUNCH (1 HOUR)', cast: 'ALL', loc: 'Catering' },
-  { time: '14:00', sc: '15', desc: 'INT. LABORATORY. Dr. Aris reveals the coil.', cast: '4, 5', loc: 'Stage 2' },
+  { time: '14:00', sc: '15', desc: 'INT. LABORATORY. Dr. Aris reveals the coil.', cast: '3', loc: 'Stage 2' },
   { time: '17:30', sc: '-', desc: 'WRAP', cast: 'ALL', loc: '-' },
 ];
 
 const CallSheet = () => {
+  const [searchParams] = useSearchParams();
+  const scriptId = searchParams.get('script');
+  
   const [selectedScript, setSelectedScript] = useState(SCRIPTS[0]);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const [weather, setWeather] = useState({ temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
-  const [schedule, setSchedule] = useState(INITIAL_SCHEDULE);
-  const [castData, setCastData] = useState(MOCK_CAST_DATA);
+  const [schedule, setSchedule] = useState(DEFAULT_SCHEDULE);
+  const [castData, setCastData] = useState(DEFAULT_CAST_DATA);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch script title and call sheet data
+  useEffect(() => {
+    const fetchCallSheetData = async () => {
+      if (!scriptId) {
+        setLoading(false);
+        return;
+      }
+
+      // 1. Fetch Script Title
+      const { data: scriptData, error: scriptError } = await supabase
+        .from('scripts')
+        .select('title')
+        .eq('id', scriptId)
+        .single();
+
+      if (scriptError) {
+        showError("Failed to load script title.");
+      } else if (scriptData) {
+        setSelectedScript({ id: scriptId, title: scriptData.title });
+      }
+
+      // 2. Fetch Call Sheet Data (or use defaults)
+      const { data: callSheetData, error: csError } = await supabase
+        .from('call_sheets')
+        .select('*')
+        .eq('script_id', scriptId)
+        .single();
+
+      if (csError || !callSheetData) {
+        // If no call sheet exists, use defaults
+        setSchedule(DEFAULT_SCHEDULE);
+        setCastData(DEFAULT_CAST_DATA);
+      } else {
+        // Load existing data (assuming structure matches state)
+        setSchedule(callSheetData.schedule || DEFAULT_SCHEDULE);
+        setCastData(callSheetData.cast_calls || DEFAULT_CAST_DATA);
+        setWeather(callSheetData.weather || { temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
+      }
+      
+      setLoading(false);
+    };
+
+    fetchCallSheetData();
+  }, [scriptId]);
 
   const handlePrint = () => {
     window.print();
     showSuccess("Preparing call sheet for print...");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!scriptId) {
+      showError("Cannot save: Script ID is missing.");
+      return;
+    }
+    
     // Sanitize all production state before 'saving'
     const sanitizedSchedule = schedule.map(row => ({
       ...row,
@@ -86,9 +141,33 @@ const CallSheet = () => {
       call: sanitizeInput(row.call)
     }));
 
-    setSchedule(sanitizedSchedule);
-    setCastData(sanitizedCast);
-    showSuccess("Call sheet validated and saved securely.");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      showError("Must be logged in to save.");
+      return;
+    }
+
+    const callSheetPayload = {
+      script_id: scriptId,
+      user_id: user.id,
+      schedule: sanitizedSchedule,
+      cast_calls: sanitizedCast,
+      weather: weather,
+      // Add other fields if necessary, using defaults if not present in state
+    };
+
+    const { error } = await supabase
+      .from('call_sheets')
+      .upsert(callSheetPayload, { onConflict: 'script_id' });
+
+    if (error) {
+      showError("Failed to save call sheet.");
+      console.error(error);
+    } else {
+      setSchedule(sanitizedSchedule);
+      setCastData(sanitizedCast);
+      showSuccess("Call sheet validated and saved securely.");
+    }
   };
 
   const handleAIWeatherSync = () => {
@@ -128,6 +207,14 @@ const CallSheet = () => {
     setCastData(newCast);
   };
 
+  if (loading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col print:bg-white">
       <div className="print:hidden">
@@ -158,6 +245,7 @@ const CallSheet = () => {
                         <DropdownMenuItem 
                           key={script.id} 
                           onClick={() => {
+                            // Note: In a real app, this should navigate to /call-sheet?script=ID
                             setSelectedScript(script);
                             showSuccess(`Call sheet loaded for "${script.title}"`);
                           }}
@@ -194,7 +282,7 @@ const CallSheet = () => {
                         {selectedScript.title}
                       </h2>
                       <p className="text-sm font-bold uppercase text-muted-foreground tracking-widest outline-none focus:bg-muted px-1" contentEditable suppressContentEditableWarning>
-                        Production Day 12 of 35
+                        Production Day 1 of 1
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
