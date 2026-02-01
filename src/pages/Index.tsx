@@ -21,8 +21,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/use-auth";
+import { ensureSampleScriptExists } from "@/utils/script-seeder";
 
 const Index = () => {
+  const { user } = useAuth();
   const [scripts, setScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
@@ -30,6 +33,12 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchScripts = async () => {
+    if (!user) return;
+    
+    // Ensure sample script exists before fetching the list
+    const userName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Anonymous';
+    await ensureSampleScriptExists(user.id, user.email || '', userName);
+
     setLoading(true);
     const { data, error } = await supabase
       .from('scripts')
@@ -43,8 +52,10 @@ const Index = () => {
   };
 
   useEffect(() => {
-    fetchScripts();
-  }, []);
+    if (user) {
+      fetchScripts();
+    }
+  }, [user]);
 
   const filteredScripts = useMemo(() => {
     return scripts.filter(script => {
@@ -175,6 +186,9 @@ const Index = () => {
                 <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10">
                   <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-medium">No scripts found</h3>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Click "Create New" to start your first screenplay.
+                  </p>
                 </div>
               )}
             </Tabs>
