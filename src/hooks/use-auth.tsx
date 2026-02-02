@@ -20,12 +20,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initial session check
+    // Initial session check directly from Supabase client
     const checkSession = async () => {
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         setSession(initialSession);
         setUser(initialSession?.user ?? null);
+      } catch (error) {
+        console.error("Auth initialization error:", error);
       } finally {
         setLoading(false);
       }
@@ -33,7 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     checkSession();
 
-    // Listen for auth state changes
+    // Listen for auth state changes to keep UI in sync with server session
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
@@ -47,6 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
   };
 
+  // Truth is derived directly from the presence of a valid session
   const isAuthenticated = !!session;
 
   return (

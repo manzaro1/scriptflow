@@ -88,7 +88,7 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
     const toastId = showLoading("Forging secure production blueprint...");
 
     try {
-      // Invoke the Supabase Edge Function instead of generating client-side
+      // Direct call to secure Edge Function. No API keys are sent from the client.
       const { data: generatedData, error: funcError } = await supabase.functions.invoke('generate-storyboard', {
         body: { 
           scriptBlocks, 
@@ -101,7 +101,6 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
         throw new Error(funcError?.message || "Failed to generate storyboard data");
       }
 
-      // Save the result to the database
       const { error: dbError } = await supabase
         .from('storyboards')
         .insert({
@@ -272,7 +271,7 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
                   <div>
                     <p className="text-xs font-bold text-green-800">Secure Generation Active</p>
                     <p className="text-[10px] text-green-700 leading-relaxed mt-1">
-                      API keys are handled securely via Supabase Edge Functions. Your personal credentials are never exposed to the client browser.
+                      API keys are handled securely via Supabase Edge Functions. No personal credentials are ever exposed to the client or stored in the browser.
                     </p>
                   </div>
                 </div>
