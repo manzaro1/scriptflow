@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ScriptCard from "@/components/ScriptCard";
@@ -10,7 +10,7 @@ import OnboardingTour from "@/components/OnboardingTour";
 import ScriptCardSkeleton from "@/components/ScriptCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Filter, SearchX, Loader2 } from 'lucide-react';
+import { Filter, SearchX, Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
@@ -23,80 +23,91 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { ensureSampleScriptExists } from "@/utils/script-seeder";
+import { showError } from '@/utils/toast';
 
 const Index = () => {
   const { user } = useAuth();
   const [scripts, setScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [totalCollaborators, setTotalCollaborators] = useState(0);
 
-  const fetchScripts = async () => {
+  const fetchScripts = useCallback(async (showSkeleton = true) => {
     if (!user) return;
     
-    setLoading(true);
+    if (showSkeleton) setLoading(true);
     
-    // 1. Ensure sample script exists (this will insert if count is 0)
-    const userName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Anonymous';
-    await ensureSampleScriptExists(user.id, user.email || '', userName);
-
-    // 2. Fetch Scripts and Collaborators
-    const { data: scriptData, error: scriptError } = await supabase
-      .from('scripts')
-      .select('*, script_collaborators(user_id)') // Also fetch collaborators for each script
-      .order('updated_at', { ascending: false });
-    
-    if (scriptError) {
-      console.error("Error fetching scripts:", scriptError);
-    } else if (scriptData) {
-      setScripts(scriptData);
+    try {
+      // 1. Fetch Scripts and Collaborators
+      const { data: scriptData, error: scriptError } = await supabase
+        .from('scripts')
+        .select('*, script_collaborators(user_id)') 
+        .order('updated_at', { ascending: false });
       
-      // 3. Calculate unique collaborators
-      const collaboratorIds = new Set<string>();
-      collaboratorIds.add(user.id); // Always include the current user (owner)
-
-      scriptData.forEach(script => {
-        if (script.user_id !== user.id) {
-          collaboratorIds.add(script.user_id);
-        }
+      if (scriptError) {
+        console.error("Error fetching scripts:", scriptError);
+        showError("Failed to load scripts from database.");
+      } else if (scriptData) {
+        setScripts(scriptData);
         
-        if (script.script_collaborators && Array.isArray(script.script_collaborators)) {
-          script.script_collaborators.forEach((collab: { user_id: string | null }) => {
-            if (collab.user_id) {
-              collaboratorIds.add(collab.user_id);
-            }
-          });
-        }
-      });
-      
-      // Count unique users involved, excluding the current user if they are the only one.
-      setTotalCollaborators(collaboratorIds.size > 0 ? collaboratorIds.size - 1 : 0);
-    }
-
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchScripts();
+        // 2. Calculate unique collaborators
+        const collaboratorIds = new Set<string>();
+        scriptData.forEach(script => {
+          if (script.script_collaborators && Array.isArray(script.script_collaborators)) {
+            script.script_collaborators.forEach((collab: { user_id: string | null }) => {
+              if (collab.user_id && collab.user_id !== user.id) {
+                collaboratorIds.add(collab.user_id);
+              }
+            });
+          }
+        });
+        setTotalCollaborators(collaboratorIds.size);
+      }
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      if (!user) return;
+      
+      setIsSeeding(true);
+      const userName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Anonymous';
+      
+      // Attempt to ensure sample script exists
+      const created = await ensureSampleScriptExists(user.id, userName);
+      setIsSeeding(false);
+      
+      // Fetch scripts (if we just created one, this will catch it)
+      fetchScripts();
+    };
+
+    initializeDashboard();
+  }, [user, fetchScripts]);
+
   const filteredScripts = useMemo(() => {
     return scripts.filter(script => {
-      const matchesTab = activeTab === "all" || (activeTab === "recent" && script.status !== 'Archived');
+      const matchesTab = 
+        activeTab === "all" || 
+        (activeTab === "recent" && script.status !== 'Archived') ||
+        (activeTab === "shared" && script.user_id !== user?.id) ||
+        (activeTab === "archived" && script.status === 'Archived');
+        
       const matchesGenre = genreFilter === "all" || script.genre === genreFilter;
-      const matchesSearch = script.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           script.author.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = 
+        script.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        script.author.toLowerCase().includes(searchQuery.toLowerCase());
+        
       return matchesTab && matchesGenre && matchesSearch;
     });
-  }, [scripts, activeTab, genreFilter, searchQuery]);
+  }, [scripts, activeTab, genreFilter, searchQuery, user?.id]);
 
   const stats = useMemo(() => {
     const finished = scripts.filter(s => s.status === 'Final').length;
-    // Calculate total pages roughly from content length if available
     const pages = scripts.reduce((acc, s) => {
       const content = Array.isArray(s.content) ? s.content : [];
       return acc + Math.max(1, Math.ceil(content.length / 15));
@@ -143,6 +154,16 @@ const Index = () => {
                 <p className="text-muted-foreground mt-1">Manage and edit your screenplays in one place.</p>
               </div>
               <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => fetchScripts(false)} 
+                  disabled={loading}
+                  className="h-8 w-8"
+                >
+                  <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+                </Button>
+                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -164,7 +185,7 @@ const Index = () => {
                 </DropdownMenu>
                 
                 <div className="tour-new-script">
-                  <NewScriptModal onComplete={fetchScripts} />
+                  <NewScriptModal onComplete={() => fetchScripts(false)} />
                 </div>
               </div>
             </header>
@@ -188,7 +209,7 @@ const Index = () => {
                 </TabsList>
               </div>
               
-              {loading ? (
+              {(loading || isSeeding) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[...Array(6)].map((_, i) => (
                     <ScriptCardSkeleton key={i} />
