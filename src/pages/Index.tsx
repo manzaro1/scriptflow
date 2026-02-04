@@ -24,11 +24,12 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { ensureSampleScriptExists } from "@/utils/script-seeder";
 import { showError } from '@/utils/toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import RuleVersioning from '@/components/RuleVersioning';
 import RuleAccessControl from '@/components/RuleAccessControl';
 import RuleValidation from '@/components/RuleValidation';
-import { Settings, ShieldAlert, History, Database } from 'lucide-react';
+import { Settings, ShieldAlert } from 'lucide-react';
 
 const Index = () => {
   const { user } = useAuth();
@@ -273,35 +274,37 @@ const Index = () => {
                 <>
                   {(loading || isSeeding) ? (
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[...Array(6)].map((_, i) => (
-                    <ScriptCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : filteredScripts.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredScripts.map((script) => (
-                    <ScriptCard 
-                      key={script.id} 
-                      id={script.id}
-                      title={script.title}
-                      author={script.author}
-                      status={script.status as any}
-                      genre={script.genre}
-                      lastModified={new Date(script.updated_at).toLocaleDateString()}
-                      onRename={handleRename}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10">
-                  <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium">No scripts found</h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Click "Create New" to start your first screenplay.
-                  </p>
-                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {[...Array(6)].map((_, i) => (
+                        <ScriptCardSkeleton key={i} />
+                      ))}
+                    </div>
+                  ) : filteredScripts.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredScripts.map((script) => (
+                        <ScriptCard 
+                          key={script.id} 
+                          id={script.id}
+                          title={script.title}
+                          author={script.author}
+                          status={script.status as any}
+                          genre={script.genre}
+                          lastModified={new Date(script.updated_at).toLocaleDateString()}
+                          onRename={handleRename}
+                          onDelete={handleDelete}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10">
+                      <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium">No scripts found</h3>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Click "Create New" to start your first screenplay.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </Tabs>
           </div>
