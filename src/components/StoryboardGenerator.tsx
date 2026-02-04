@@ -13,7 +13,8 @@ import {
   FileJson,
   FileText,
   Monitor,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { 
@@ -88,7 +89,6 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
     const toastId = showLoading("Forging secure production blueprint...");
 
     try {
-      // Direct call to secure Edge Function. No API keys are sent from the client.
       const { data: generatedData, error: funcError } = await supabase.functions.invoke('generate-storyboard', {
         body: { 
           scriptBlocks, 
@@ -113,9 +113,9 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
 
       setStoryboardData(generatedData);
       setShowResult(true);
-      showSuccess(`Production Blueprint forged securely and saved.`);
+      showSuccess(`Production Blueprint forged and saved.`);
     } catch (error: any) {
-      console.error("Generation error:", error);
+      console.error("[Generator] Error:", error);
       showError(error.message || "Failed to forge storyboard blueprint.");
     } finally {
       dismissToast(toastId);
@@ -184,18 +184,23 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className={showResult ? "sm:max-w-[98vw] max-h-[95vh] overflow-y-auto bg-black border-white/10 p-0" : "sm:max-w-[600px] bg-white"}>
-        {!showResult && (
-          <DialogHeader className="p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="bg-orange-600 text-white p-1.5 rounded-lg shadow-lg">
-                <Sparkles size={18} />
-              </div>
-              <DialogTitle>Forge Technical Blueprint</DialogTitle>
+        <DialogHeader className={showResult ? "hidden" : "p-6"}>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="bg-orange-600 text-white p-1.5 rounded-lg shadow-lg">
+              <Sparkles size={18} />
             </div>
-            <DialogDescription>
-              Configure the cinematic parameters for your shot-by-shot extraction.
-            </DialogDescription>
-          </DialogHeader>
+            <DialogTitle>Forge Technical Blueprint</DialogTitle>
+          </div>
+          <DialogDescription>
+            Configure the cinematic parameters for your shot-by-shot extraction from "{scriptTitle}".
+          </DialogDescription>
+        </DialogHeader>
+
+        {showResult && (
+          <div className="sr-only">
+            <DialogTitle>Storyboard Results</DialogTitle>
+            <DialogDescription>Visual breakdown of shots extracted from your script.</DialogDescription>
+          </div>
         )}
 
         <div className={showResult ? "p-0" : "p-6 py-0"}>
@@ -271,7 +276,7 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
                   <div>
                     <p className="text-xs font-bold text-green-800">Secure Generation Active</p>
                     <p className="text-[10px] text-green-700 leading-relaxed mt-1">
-                      API keys are handled securely via Supabase Edge Functions. No personal credentials are ever exposed to the client or stored in the browser.
+                      API keys are handled securely via Supabase Edge Functions.
                     </p>
                   </div>
                 </div>

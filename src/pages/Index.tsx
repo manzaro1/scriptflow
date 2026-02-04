@@ -24,8 +24,6 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { ensureSampleScriptExists } from "@/utils/script-seeder";
 import { showError } from '@/utils/toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
 
 const Index = () => {
   const { user } = useAuth();
@@ -43,19 +41,19 @@ const Index = () => {
     if (showSkeleton) setLoading(true);
     
     try {
-      // 1. Fetch Scripts and Collaborators
+      // Fetching scripts with collaborator data
       const { data: scriptData, error: scriptError } = await supabase
         .from('scripts')
         .select('*, script_collaborators(user_id)') 
         .order('updated_at', { ascending: false });
       
       if (scriptError) {
-        console.error("Error fetching scripts:", scriptError);
-        showError("Failed to load scripts from database.");
+        console.error("[Dashboard] Supabase Error:", scriptError.message, scriptError.details);
+        showError(`Database error: ${scriptError.message}`);
       } else if (scriptData) {
         setScripts(scriptData);
         
-        // 2. Calculate unique collaborators
+        // Calculate unique collaborators
         const collaboratorIds = new Set<string>();
         scriptData.forEach(script => {
           if (script.script_collaborators && Array.isArray(script.script_collaborators)) {
@@ -68,6 +66,9 @@ const Index = () => {
         });
         setTotalCollaborators(collaboratorIds.size);
       }
+    } catch (err) {
+      console.error("[Dashboard] Unexpected error:", err);
+      showError("An unexpected error occurred while loading your library.");
     } finally {
       setLoading(false);
     }
@@ -80,11 +81,10 @@ const Index = () => {
       setIsSeeding(true);
       const userName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Anonymous';
       
-      // Attempt to ensure sample script exists
-      const created = await ensureSampleScriptExists(user.id, userName);
+      // Seed initial data if needed
+      await ensureSampleScriptExists(user.id, userName);
       setIsSeeding(false);
       
-      // Fetch scripts (if we just created one, this will catch it)
       fetchScripts();
     };
 
@@ -130,14 +130,18 @@ const Index = () => {
       .update({ title: newTitle, updated_at: new Date().toISOString() })
       .eq('id', id);
 
-    if (!error) {
+    if (error) {
+      showError("Failed to rename script.");
+    } else {
       setScripts(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
     }
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('scripts').delete().eq('id', id);
-    if (!error) {
+    if (error) {
+      showError("Failed to delete script.");
+    } else {
       setScripts(prev => prev.filter(s => s.id !== id));
     }
   };
@@ -212,7 +216,6 @@ const Index = () => {
               </div>
               
               {(loading || isSeeding) ? (
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[...Array(6)].map((_, i) => (
                     <ScriptCardSkeleton key={i} />
