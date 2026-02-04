@@ -26,10 +26,6 @@ import { ensureSampleScriptExists } from "@/utils/script-seeder";
 import { showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import RuleVersioning from '@/components/RuleVersioning';
-import RuleAccessControl from '@/components/RuleAccessControl';
-import RuleValidation from '@/components/RuleValidation';
-import { Settings, ShieldAlert } from 'lucide-react';
 
 const Index = () => {
   const { user } = useAuth();
@@ -40,16 +36,6 @@ const Index = () => {
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [totalCollaborators, setTotalCollaborators] = useState(0);
-  const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Fetch a default rule ID for the versioning component
-    const fetchDefaultRule = async () => {
-      const { data } = await supabase.from('ai_rules').select('id').limit(1).single();
-      if (data) setSelectedRuleId(data.id);
-    };
-    fetchDefaultRule();
-  }, []);
 
   const fetchScripts = useCallback(async (showSkeleton = true) => {
     if (!user) return;
@@ -222,89 +208,40 @@ const Index = () => {
                   <TabsTrigger value="recent">Recent</TabsTrigger>
                   <TabsTrigger value="shared">Shared</TabsTrigger>
                   <TabsTrigger value="archived">Archived</TabsTrigger>
-                  <TabsTrigger value="ai-rules" className="gap-2">
-                    <Settings className="h-4 w-4" />
-                    AI Rule Engine
-                  </TabsTrigger>
                 </TabsList>
               </div>
               
-              {activeTab === "ai-rules" ? (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="space-y-6">
-                      <RuleAccessControl />
-                      <RuleValidation />
-                    </div>
-                    <div>
-                      {selectedRuleId && (
-                        <RuleVersioning
-                          ruleId={selectedRuleId}
-                          onRevert={(content) => console.log("Reverted to:", content)}
-                        />
-                      )}
-                      
-                      <Card className="mt-6 border-primary/20 bg-primary/5">
-                        <CardHeader>
-                          <div className="flex items-center gap-2">
-                            <ShieldAlert className="h-5 w-5 text-primary" />
-                            <CardTitle>Architecture Status</CardTitle>
-                          </div>
-                          <CardDescription>SaaS-enhanced security and reliability monitoring.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Rule Hardening</span>
-                            <span className="text-green-500 font-medium">ENABLED</span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Hallucination Filter</span>
-                            <span className="text-green-500 font-medium">ACTIVE</span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Audit Logging</span>
-                            <span className="text-green-500 font-medium">SYNCHRONIZED</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
+              {(loading || isSeeding) ? (
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <ScriptCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : filteredScripts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredScripts.map((script) => (
+                    <ScriptCard 
+                      key={script.id} 
+                      id={script.id}
+                      title={script.title}
+                      author={script.author}
+                      status={script.status as any}
+                      genre={script.genre}
+                      lastModified={new Date(script.updated_at).toLocaleDateString()}
+                      onRename={handleRename}
+                      onDelete={handleDelete}
+                    />
+                  ))}
                 </div>
               ) : (
-                <>
-                  {(loading || isSeeding) ? (
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {[...Array(6)].map((_, i) => (
-                        <ScriptCardSkeleton key={i} />
-                      ))}
-                    </div>
-                  ) : filteredScripts.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredScripts.map((script) => (
-                        <ScriptCard 
-                          key={script.id} 
-                          id={script.id}
-                          title={script.title}
-                          author={script.author}
-                          status={script.status as any}
-                          genre={script.genre}
-                          lastModified={new Date(script.updated_at).toLocaleDateString()}
-                          onRename={handleRename}
-                          onDelete={handleDelete}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10">
-                      <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-medium">No scripts found</h3>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Click "Create New" to start your first screenplay.
-                      </p>
-                    </div>
-                  )}
-                </>
+                <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10">
+                  <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium">No scripts found</h3>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Click "Create New" to start your first screenplay.
+                  </p>
+                </div>
               )}
             </Tabs>
           </div>
