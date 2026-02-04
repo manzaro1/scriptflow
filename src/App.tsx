@@ -15,6 +15,7 @@ import Careers from "./pages/Careers";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import AuthGuard from "./components/AuthGuard";
 import { AuthProvider } from "./hooks/use-auth";
@@ -32,6 +33,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/login" element={<Login />} />
               
               {/* Protected Routes */}
               <Route path="/dashboard" element={<AuthGuard><Index /></AuthGuard>} />
