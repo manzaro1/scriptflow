@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Printer, 
-  Share2, 
-  Download, 
-  Clock, 
-  MapPin, 
-  CloudSun, 
-  Phone, 
+import {
+  Printer,
+  Share2,
+  Download,
+  Clock,
+  MapPin,
+  CloudSun,
+  Phone,
   User,
   CalendarDays,
   ChevronDown,
@@ -35,6 +35,7 @@ import {
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { sanitizeInput } from "@/utils/security";
 import { supabase } from "@/integrations/supabase/client";
+import { motion } from "framer-motion";
 
 const SCRIPTS = [
   { id: "1", title: "The Neon Horizon" },
@@ -60,7 +61,7 @@ const DEFAULT_SCHEDULE = [
 const CallSheet = () => {
   const [searchParams] = useSearchParams();
   const scriptId = searchParams.get('script');
-  
+
   const [selectedScript, setSelectedScript] = useState(SCRIPTS[0]);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const [weather, setWeather] = useState({ temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
@@ -68,7 +69,6 @@ const CallSheet = () => {
   const [castData, setCastData] = useState(DEFAULT_CAST_DATA);
   const [loading, setLoading] = useState(true);
 
-  // Fetch script title and call sheet data
   useEffect(() => {
     const fetchCallSheetData = async () => {
       if (!scriptId) {
@@ -76,7 +76,6 @@ const CallSheet = () => {
         return;
       }
 
-      // 1. Fetch Script Title
       const { data: scriptData, error: scriptError } = await supabase
         .from('scripts')
         .select('title')
@@ -89,7 +88,6 @@ const CallSheet = () => {
         setSelectedScript({ id: scriptId, title: scriptData.title });
       }
 
-      // 2. Fetch Call Sheet Data (or use defaults)
       const { data: callSheetData, error: csError } = await supabase
         .from('call_sheets')
         .select('*')
@@ -97,16 +95,14 @@ const CallSheet = () => {
         .single();
 
       if (csError || !callSheetData) {
-        // If no call sheet exists, use defaults
         setSchedule(DEFAULT_SCHEDULE);
         setCastData(DEFAULT_CAST_DATA);
       } else {
-        // Load existing data (assuming structure matches state)
         setSchedule(callSheetData.schedule || DEFAULT_SCHEDULE);
         setCastData(callSheetData.cast_calls || DEFAULT_CAST_DATA);
         setWeather(callSheetData.weather || { temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
       }
-      
+
       setLoading(false);
     };
 
@@ -123,8 +119,7 @@ const CallSheet = () => {
       showError("Cannot save: Script ID is missing.");
       return;
     }
-    
-    // Sanitize all production state before 'saving'
+
     const sanitizedSchedule = schedule.map(row => ({
       ...row,
       time: sanitizeInput(row.time),
@@ -133,7 +128,7 @@ const CallSheet = () => {
       cast: sanitizeInput(row.cast),
       loc: sanitizeInput(row.loc)
     }));
-    
+
     const sanitizedCast = castData.map(row => ({
       ...row,
       name: sanitizeInput(row.name),
@@ -153,7 +148,6 @@ const CallSheet = () => {
       schedule: sanitizedSchedule,
       cast_calls: sanitizedCast,
       weather: weather,
-      // Add other fields if necessary, using defaults if not present in state
     };
 
     const { error } = await supabase
@@ -173,7 +167,7 @@ const CallSheet = () => {
   const handleAIWeatherSync = () => {
     setIsFetchingWeather(true);
     const toastId = showLoading("AI analyzing location forecast...");
-    
+
     setTimeout(() => {
       setWeather({
         temp: `${Math.floor(Math.random() * (85 - 65) + 65)}°F`,
@@ -207,6 +201,8 @@ const CallSheet = () => {
     setCastData(newCast);
   };
 
+  const isBreakRow = (desc: string) => desc.includes('LUNCH') || desc.includes('WRAP');
+
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center">
@@ -226,7 +222,12 @@ const CallSheet = () => {
         </div>
         <main className="flex-1 p-6 md:p-8 overflow-y-auto print:bg-white print:p-0">
           <div className="max-w-5xl mx-auto space-y-6">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
+            <motion.header
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden"
+            >
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Call Sheets</h1>
                 <div className="mt-2 flex items-center gap-2">
@@ -242,10 +243,9 @@ const CallSheet = () => {
                       <DropdownMenuLabel>Select Project</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       {SCRIPTS.map(script => (
-                        <DropdownMenuItem 
-                          key={script.id} 
+                        <DropdownMenuItem
+                          key={script.id}
                           onClick={() => {
-                            // Note: In a real app, this should navigate to /call-sheet?script=ID
                             setSelectedScript(script);
                             showSuccess(`Call sheet loaded for "${script.title}"`);
                           }}
@@ -271,9 +271,12 @@ const CallSheet = () => {
                   Export PDF
                 </Button>
               </div>
-            </header>
+            </motion.header>
 
-            <Card className="shadow-xl border-t-8 border-t-primary print:shadow-none print:border-none">
+            <Card className="shadow-xl overflow-hidden print:shadow-none print:border-none">
+              {/* Gradient header bar */}
+              <div className="h-2 bg-gradient-to-r from-primary via-purple-500 to-fuchsia-500" />
+
               <CardContent className="p-8 space-y-8">
                 <div className="flex flex-col md:flex-row justify-between gap-6 border-b pb-6">
                   <div className="space-y-4">
@@ -296,11 +299,12 @@ const CallSheet = () => {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="bg-muted p-4 rounded-lg flex flex-col justify-center items-center text-center min-w-[180px]">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1">Crew Call</p>
-                    <div className="text-4xl font-black outline-none focus:bg-white/50 p-1" contentEditable suppressContentEditableWarning>07:00</div>
-                    <p className="text-xs font-bold mt-1 text-muted-foreground uppercase outline-none focus:bg-white/50" contentEditable suppressContentEditableWarning>AM • Oct 12, 2024</p>
+
+                  {/* Prominent crew call card */}
+                  <div className="bg-gradient-to-br from-primary/10 to-purple-500/10 p-6 rounded-xl border border-primary/20 flex flex-col justify-center items-center text-center min-w-[200px] shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">Crew Call</p>
+                    <div className="text-5xl font-black tracking-tight outline-none focus:bg-white/50 p-1" contentEditable suppressContentEditableWarning>07:00</div>
+                    <p className="text-xs font-bold mt-2 text-muted-foreground uppercase outline-none focus:bg-white/50" contentEditable suppressContentEditableWarning>AM • Oct 12, 2024</p>
                   </div>
                 </div>
 
@@ -310,7 +314,7 @@ const CallSheet = () => {
                       <MapPin size={16} />
                       <h3 className="text-xs font-black uppercase tracking-widest">Locations</h3>
                     </div>
-                    <div className="p-3 bg-muted/50 rounded border text-sm space-y-2">
+                    <div className="p-3 bg-muted/50 rounded-lg border text-sm space-y-2">
                       <div className="outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning>
                         <p className="font-bold">Stage 4 - Neon Studio</p>
                         <p className="text-xs text-muted-foreground">123 Production Way, Culver City</p>
@@ -328,9 +332,9 @@ const CallSheet = () => {
                         <CloudSun size={16} />
                         <h3 className="text-xs font-black uppercase tracking-widest">Weather</h3>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-6 w-6 text-primary hover:bg-primary/10 print:hidden"
                         onClick={handleAIWeatherSync}
                         disabled={isFetchingWeather}
@@ -338,7 +342,7 @@ const CallSheet = () => {
                         {isFetchingWeather ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                       </Button>
                     </div>
-                    <div className="p-3 bg-muted/50 rounded border flex items-center justify-between">
+                    <div className="p-3 bg-muted/50 rounded-lg border flex items-center justify-between">
                       <div>
                         <p className="text-2xl font-black">{weather.temp}</p>
                         <p className="text-xs font-bold uppercase">{weather.condition}</p>
@@ -355,7 +359,7 @@ const CallSheet = () => {
                       <Phone size={16} />
                       <h3 className="text-xs font-black uppercase tracking-widest">Key Contacts</h3>
                     </div>
-                    <div className="p-3 bg-muted/50 rounded border text-sm space-y-2">
+                    <div className="p-3 bg-muted/50 rounded-lg border text-sm space-y-2">
                       <div className="flex justify-between outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning>
                         <span>1st AD: Mike Miller</span>
                         <span className="font-mono font-bold">555-0123</span>
@@ -374,49 +378,58 @@ const CallSheet = () => {
                       <Clock size={18} className="text-primary" />
                       <h3 className="text-lg font-black uppercase tracking-tight">Shooting Schedule</h3>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={addScheduleRow} 
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addScheduleRow}
                       className="print:hidden h-7 gap-1 px-2"
                     >
                       <Plus size={14} />
                       Add Line
                     </Button>
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted hover:bg-muted">
-                        <TableHead className="w-16 font-bold uppercase text-[10px]">Time</TableHead>
-                        <TableHead className="w-16 font-bold uppercase text-[10px]">Sc.</TableHead>
-                        <TableHead className="font-bold uppercase text-[10px]">Description</TableHead>
-                        <TableHead className="w-24 font-bold uppercase text-[10px]">Cast</TableHead>
-                        <TableHead className="w-32 font-bold uppercase text-[10px]">Location</TableHead>
-                        <TableHead className="w-10 print:hidden"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {schedule.map((row, i) => (
-                        <TableRow key={i} className={row.desc.includes('LUNCH') ? 'bg-primary/5 font-bold' : 'group'}>
-                          <TableCell className="font-mono text-xs outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'time', e.currentTarget.innerText)}>{row.time}</TableCell>
-                          <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'sc', e.currentTarget.innerText)}>{row.sc}</TableCell>
-                          <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'desc', e.currentTarget.innerText)}>{row.desc}</TableCell>
-                          <TableCell className="text-xs font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'cast', e.currentTarget.innerText)}>{row.cast}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'loc', e.currentTarget.innerText)}>{row.loc}</TableCell>
-                          <TableCell className="text-right print:hidden">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => removeScheduleRow(i)}
-                            >
-                              <Trash2 size={12} />
-                            </Button>
-                          </TableCell>
+                  <div className="rounded-lg overflow-hidden border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-900 dark:bg-slate-800 hover:bg-slate-900 dark:hover:bg-slate-800">
+                          <TableHead className="w-16 font-black uppercase text-[10px] text-white tracking-wider">Time</TableHead>
+                          <TableHead className="w-16 font-black uppercase text-[10px] text-white tracking-wider">Sc.</TableHead>
+                          <TableHead className="font-black uppercase text-[10px] text-white tracking-wider">Description</TableHead>
+                          <TableHead className="w-24 font-black uppercase text-[10px] text-white tracking-wider">Cast</TableHead>
+                          <TableHead className="w-32 font-black uppercase text-[10px] text-white tracking-wider">Location</TableHead>
+                          <TableHead className="w-10 print:hidden"></TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {schedule.map((row, i) => (
+                          <TableRow
+                            key={i}
+                            className={
+                              isBreakRow(row.desc)
+                                ? 'bg-primary/10 font-bold border-y-2 border-primary/20'
+                                : i % 2 === 0 ? 'bg-background group' : 'bg-muted/30 group'
+                            }
+                          >
+                            <TableCell className="font-mono text-xs font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'time', e.currentTarget.innerText)}>{row.time}</TableCell>
+                            <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'sc', e.currentTarget.innerText)}>{row.sc}</TableCell>
+                            <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'desc', e.currentTarget.innerText)}>{row.desc}</TableCell>
+                            <TableCell className="text-xs font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'cast', e.currentTarget.innerText)}>{row.cast}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateScheduleCell(i, 'loc', e.currentTarget.innerText)}>{row.loc}</TableCell>
+                            <TableCell className="text-right print:hidden">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => removeScheduleRow(i)}
+                              >
+                                <Trash2 size={12} />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -425,42 +438,46 @@ const CallSheet = () => {
                       <User size={18} className="text-orange-500" />
                       <h3 className="text-lg font-black uppercase tracking-tight">Cast Calls</h3>
                     </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50 hover:bg-muted/50">
-                          <TableHead className="w-12 font-bold uppercase text-[10px]">#</TableHead>
-                          <TableHead className="font-bold uppercase text-[10px]">Performer</TableHead>
-                          <TableHead className="font-bold uppercase text-[10px]">Role</TableHead>
-                          <TableHead className="w-20 font-bold uppercase text-[10px]">Call</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {castData.map((row, i) => (
-                          <TableRow key={row.id}>
-                            <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'id', e.currentTarget.innerText)}>{row.id}</TableCell>
-                            <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'name', e.currentTarget.innerText)}>{row.name}</TableCell>
-                            <TableCell className="text-xs font-bold uppercase text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'role', e.currentTarget.innerText)}>{row.role}</TableCell>
-                            <TableCell className="font-mono font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'call', e.currentTarget.innerText)}>{row.call}</TableCell>
+                    <div className="rounded-lg overflow-hidden border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-900 dark:bg-slate-800 hover:bg-slate-900 dark:hover:bg-slate-800">
+                            <TableHead className="w-12 font-black uppercase text-[10px] text-white tracking-wider">#</TableHead>
+                            <TableHead className="font-black uppercase text-[10px] text-white tracking-wider">Performer</TableHead>
+                            <TableHead className="font-black uppercase text-[10px] text-white tracking-wider">Role</TableHead>
+                            <TableHead className="w-20 font-black uppercase text-[10px] text-white tracking-wider">Call</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {castData.map((row, i) => (
+                            <TableRow key={row.id} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
+                              <TableCell className="font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'id', e.currentTarget.innerText)}>{row.id}</TableCell>
+                              <TableCell className="text-sm outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'name', e.currentTarget.innerText)}>{row.name}</TableCell>
+                              <TableCell className="text-xs font-bold uppercase text-muted-foreground outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'role', e.currentTarget.innerText)}>{row.role}</TableCell>
+                              <TableCell className="font-mono font-bold outline-none focus:bg-muted" contentEditable suppressContentEditableWarning onBlur={(e) => updateCastCell(i, 'call', e.currentTarget.innerText)}>{row.call}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
 
-                  <div className="space-y-4 bg-muted/20 p-6 rounded-xl border-2 border-dashed border-muted">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Production Notes</h3>
-                    <div className="text-xs space-y-3 list-disc pl-4 text-muted-foreground font-medium outline-none focus:bg-white p-2 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => sanitizeInput(e.currentTarget.innerText)}>
+                  {/* Post-it note style production notes */}
+                  <div className="space-y-4 bg-amber-50/50 dark:bg-amber-900/10 p-6 rounded-xl border-2 border-amber-200/50 dark:border-amber-800/30 shadow-sm relative">
+                    <div className="absolute -top-2 -right-2 h-6 w-6 bg-amber-400 rounded-full shadow-md print:hidden" />
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-400">Production Notes</h3>
+                    <div className="text-xs space-y-3 list-disc pl-4 text-muted-foreground font-medium outline-none focus:bg-white/50 dark:focus:bg-black/20 p-2 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => sanitizeInput(e.currentTarget.innerText)}>
                       <p>• Safety meeting at 07:15 for all electrical and grip crew.</p>
                       <p>• Heavy rain effects in Scene 12—bring appropriate weather gear.</p>
                       <p>• Parking strictly enforced in Hangar lot; use shuttle for Overflow.</p>
                       <p>• Quiet on set! Hospital in adjacent building.</p>
                     </div>
-                    <div className="pt-4 mt-4 border-t border-muted">
-                      <div className="flex items-center gap-2 text-primary">
+                    <div className="pt-4 mt-4 border-t border-amber-200/50 dark:border-amber-800/30">
+                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                         <CalendarDays size={14} />
                         <span className="text-[10px] font-black uppercase">Tomorrow's Look</span>
                       </div>
-                      <p className="text-[10px] mt-1 italic outline-none focus:bg-white p-1 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => sanitizeInput(e.currentTarget.innerText)}>
+                      <p className="text-[10px] mt-1 italic outline-none focus:bg-white/50 dark:focus:bg-black/20 p-1 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => sanitizeInput(e.currentTarget.innerText)}>
                         Scene 16-19: Night exterior car chase sequence. Prep vehicles for 14:00.
                       </p>
                     </div>

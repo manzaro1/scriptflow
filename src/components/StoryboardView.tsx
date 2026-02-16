@@ -3,18 +3,18 @@
 import React, { useState, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Music, 
-  Volume2, 
-  RefreshCw, 
-  Edit3, 
-  Check, 
-  X, 
-  Camera, 
-  Palette, 
-  Heart, 
-  Move, 
-  Maximize2, 
+import {
+  Music,
+  Volume2,
+  RefreshCw,
+  Edit3,
+  Check,
+  X,
+  Camera,
+  Palette,
+  Heart,
+  Move,
+  Maximize2,
   Minimize2,
   Info,
   Layers
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { showSuccess } from "@/utils/toast";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 export interface StoryboardRow {
   id: string;
@@ -101,8 +102,14 @@ const StoryboardView = ({ title, data, aspectRatio, onRegenerateShot }: Storyboa
       </div>
 
       <div className="space-y-12">
-        {Object.entries(groupedData).map(([sceneTitle, shots]) => (
-          <div key={sceneTitle} className="space-y-6">
+        {Object.entries(groupedData).map(([sceneTitle, shots], sceneIndex) => (
+          <motion.div
+            key={sceneTitle}
+            className="space-y-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: sceneIndex * 0.1 }}
+          >
             <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
               <div className="h-10 w-1 bg-orange-600 rounded-full" />
               <div>
@@ -116,7 +123,7 @@ const StoryboardView = ({ title, data, aspectRatio, onRegenerateShot }: Storyboa
 
             <Table className="border-collapse">
               <TableHeader>
-                <TableRow className="border-b-0 hover:bg-transparent">
+                <TableRow className="border-b-0 hover:bg-transparent sticky top-0 z-10">
                   <TableHead className="bg-[#0A0A0A] text-white/40 uppercase text-[9px] font-black tracking-[0.2em] text-center h-12 border border-white/10 w-20">Shot</TableHead>
                   <TableHead className="bg-[#0A0A0A] text-white/40 uppercase text-[9px] font-black tracking-[0.2em] h-12 border border-white/10 w-44">Optics & Motion</TableHead>
                   <TableHead className="bg-[#0A0A0A] text-white/40 uppercase text-[9px] font-black tracking-[0.2em] h-12 border border-white/10 w-[550px]">Composition & Blocking</TableHead>
@@ -160,11 +167,15 @@ const StoryboardView = ({ title, data, aspectRatio, onRegenerateShot }: Storyboa
                           getAspectClass()
                         )}>
                           {row.imageUrl ? (
-                            <img 
-                              src={row.imageUrl} 
-                              alt="Production Shot" 
-                              className="w-full h-full object-cover transition-all duration-1000 group-hover/img:scale-105"
-                            />
+                            <>
+                              <img
+                                src={row.imageUrl}
+                                alt="Production Shot"
+                                className="w-full h-full object-cover transition-all duration-1000 group-hover/img:scale-105"
+                              />
+                              {/* Cinematic vignette overlay */}
+                              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(0,0,0,0.4)_100%)] pointer-events-none" />
+                            </>
                           ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center gap-3">
                               <RefreshCw className="text-orange-500 animate-spin" size={32} />
@@ -269,7 +280,7 @@ const StoryboardView = ({ title, data, aspectRatio, onRegenerateShot }: Storyboa
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

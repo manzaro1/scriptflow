@@ -1,11 +1,11 @@
 "use client";
 
 import React from 'react';
-import { 
-  Activity, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Target, 
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Target,
   TrendingUp,
   BrainCircuit,
   Eye,
@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { motion } from "framer-motion";
 
 const ProductionOverseer = () => {
   const characters = [
@@ -26,9 +27,9 @@ const ProductionOverseer = () => {
   ];
 
   const climaxMetrics = [
-    { label: 'Narrative Tension', value: 78, color: 'bg-orange-500' },
-    { label: 'Emotional Payoff', value: 45, color: 'bg-purple-500' },
-    { label: 'Subplot Convergence', value: 62, color: 'bg-blue-500' },
+    { label: 'Narrative Tension', value: 78, color: 'bg-gradient-to-r from-orange-500 to-amber-500' },
+    { label: 'Emotional Payoff', value: 45, color: 'bg-gradient-to-r from-purple-500 to-violet-500' },
+    { label: 'Subplot Convergence', value: 62, color: 'bg-gradient-to-r from-blue-500 to-cyan-500' },
   ];
 
   const requirements = [
@@ -39,13 +40,18 @@ const ProductionOverseer = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <motion.div
+      initial={{ opacity: 0, x: 10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-4"
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Eye size={18} className="text-primary" />
           <h3 className="text-sm font-bold uppercase tracking-wider">Production Overseer</h3>
         </div>
-        <Badge variant="outline" className="animate-pulse bg-green-50 text-green-700 border-green-200">
+        <Badge variant="outline" className="animate-pulse bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
           Live Analysis
         </Badge>
       </div>
@@ -70,21 +76,27 @@ const ProductionOverseer = () => {
                   <div key={mon.name} className="space-y-1.5">
                     <div className="flex justify-between items-end">
                       <div className="flex items-center gap-2">
+                        {/* Character avatar initial */}
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black ${
+                          mon.status === 'Off Hook' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        }`}>
+                          {mon.name[0]}
+                        </div>
                         <span className="text-xs font-bold">{mon.name}</span>
-                        <Badge 
-                          variant="secondary" 
+                        <Badge
+                          variant="secondary"
                           className={`text-[9px] h-3.5 px-1 ${
-                            mon.status === 'Off Hook' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                            mon.status === 'Off Hook' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                           }`}
                         >
                           {mon.status}
                         </Badge>
                       </div>
-                      <span className="text-[10px] font-medium text-muted-foreground">{mon.score}% Consistency</span>
+                      <span className="text-[10px] font-medium text-muted-foreground">{mon.score}%</span>
                     </div>
                     <Progress value={mon.score} className="h-1.5" />
                     {mon.alert && (
-                      <div className="flex items-start gap-1.5 mt-1 text-[10px] text-red-600 bg-red-50 p-1.5 rounded border border-red-100">
+                      <div className="flex items-start gap-1.5 mt-1 text-[10px] text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 p-1.5 rounded border border-red-100 dark:border-red-800">
                         <AlertTriangle size={10} className="shrink-0 mt-0.5" />
                         <span>{mon.alert}</span>
                       </div>
@@ -99,7 +111,7 @@ const ProductionOverseer = () => {
         <TabsContent value="climax" className="mt-4 space-y-4">
           <Card className="border-orange-500/20 bg-orange-500/5 shadow-none">
             <CardHeader className="p-4 pb-2">
-              <div className="flex items-center gap-2 text-orange-600">
+              <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
                 <Flame size={16} />
                 <CardTitle className="text-sm">Climax Trajectory</CardTitle>
               </div>
@@ -111,7 +123,9 @@ const ProductionOverseer = () => {
                     <span>{metric.label}</span>
                     <span>{metric.value}%</span>
                   </div>
-                  <Progress value={metric.value} className="h-1.5" indicatorClassName={metric.color} />
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${metric.color}`} style={{ width: `${metric.value}%` }} />
+                  </div>
                 </div>
               ))}
             </CardContent>
@@ -119,7 +133,7 @@ const ProductionOverseer = () => {
 
           <Card className="border-blue-500/20 shadow-none">
             <CardHeader className="p-4 pb-2">
-              <div className="flex items-center gap-2 text-blue-600">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                 <ListChecks size={16} />
                 <CardTitle className="text-sm">Climax Requirements</CardTitle>
               </div>
@@ -162,7 +176,7 @@ const ProductionOverseer = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

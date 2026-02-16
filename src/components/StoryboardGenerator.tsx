@@ -247,10 +247,29 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
                   </div>
                 </div>
 
-                <div className="p-8 border rounded-2xl bg-muted/30 text-center border-dashed border-primary/20">
-                  <Film size={32} className="mx-auto mb-4 text-orange-500/50" />
+                {/* Visual aspect ratio indicator */}
+                <div className="p-6 border rounded-2xl bg-muted/30 text-center border-dashed border-primary/20 space-y-4">
+                  <div className="mx-auto flex items-center justify-center">
+                    <div
+                      className="border-2 border-orange-500/30 bg-gradient-to-b from-orange-500/5 to-transparent rounded-sm relative overflow-hidden"
+                      style={{
+                        width: aspectRatio === '2.39:1' ? '280px' : aspectRatio === '1.85:1' ? '260px' : '240px',
+                        height: aspectRatio === '2.39:1' ? '117px' : aspectRatio === '1.85:1' ? '140px' : '135px',
+                      }}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Film size={24} className="text-orange-500/30" />
+                      </div>
+                      <div className="absolute bottom-1 right-2 text-[8px] font-mono font-bold text-orange-500/50">{aspectRatio}</div>
+                      {/* Letterbox guides */}
+                      <div className="absolute top-0 left-0 right-0 h-px bg-orange-500/20" />
+                      <div className="absolute bottom-0 left-0 right-0 h-px bg-orange-500/20" />
+                      <div className="absolute top-0 bottom-0 left-0 w-px bg-orange-500/20" />
+                      <div className="absolute top-0 bottom-0 right-0 w-px bg-orange-500/20" />
+                    </div>
+                  </div>
                   <h4 className="font-bold">Production: "{scriptTitle}"</h4>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
                     Extracting {scriptBlocks.filter(b => b.type === 'action').length} shots with focal length heuristics
                   </p>
                 </div>
@@ -330,20 +349,24 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
           ) : (
             <>
               <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button 
-                onClick={handleGenerate} 
+              <Button
+                onClick={handleGenerate}
                 disabled={isGenerating || !scriptId}
-                className="bg-orange-600 hover:bg-orange-700 h-11 min-w-[200px] font-bold"
+                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 h-12 min-w-[240px] font-black text-base shadow-xl shadow-orange-600/30 relative overflow-hidden group"
               >
                 {isGenerating ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin mr-2" />
-                    Forging secure blueprint...
-                  </>
+                  <div className="flex items-center gap-3">
+                    <Loader2 size={20} className="animate-spin" />
+                    <div className="text-left">
+                      <div className="text-sm font-bold">Forging Blueprint...</div>
+                      <div className="text-[10px] opacity-70">Analyzing cinematic structure</div>
+                    </div>
+                  </div>
                 ) : (
                   <>
+                    <Sparkles size={18} className="mr-2" />
                     Forge Secure Blueprint
-                    <ArrowRight size={18} className="ml-2" />
+                    <ArrowRight size={18} className="ml-2 group-hover:translate-x-0.5 transition-transform" />
                   </>
                 )}
               </Button>

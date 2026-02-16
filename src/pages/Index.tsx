@@ -10,7 +10,7 @@ import OnboardingTour from "@/components/OnboardingTour";
 import ScriptCardSkeleton from "@/components/ScriptCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Filter, SearchX, Loader2, RefreshCw } from 'lucide-react';
+import { Filter, SearchX, Loader2, RefreshCw, Film, Plus } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { ensureSampleScriptExists } from "@/utils/script-seeder";
 import { showError } from '@/utils/toast';
+import { motion, AnimatePresence } from "framer-motion";
 
 const Index = () => {
   const { user } = useAuth();
@@ -37,34 +38,22 @@ const Index = () => {
 
   const fetchScripts = useCallback(async (showSkeleton = true) => {
     if (!user) return;
-    
+
     if (showSkeleton) setLoading(true);
-    
+
     try {
-      // Fetching scripts with collaborator data
       const { data: scriptData, error: scriptError } = await supabase
         .from('scripts')
-        .select('*, script_collaborators(user_id)') 
+        .select('*')
+        .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
-      
+
       if (scriptError) {
         console.error("[Dashboard] Supabase Error:", scriptError.message, scriptError.details);
         showError(`Database error: ${scriptError.message}`);
       } else if (scriptData) {
         setScripts(scriptData);
-        
-        // Calculate unique collaborators
-        const collaboratorIds = new Set<string>();
-        scriptData.forEach(script => {
-          if (script.script_collaborators && Array.isArray(script.script_collaborators)) {
-            script.script_collaborators.forEach((collab: { user_id: string | null }) => {
-              if (collab.user_id && collab.user_id !== user.id) {
-                collaboratorIds.add(collab.user_id);
-              }
-            });
-          }
-        });
-        setTotalCollaborators(collaboratorIds.size);
+        setTotalCollaborators(0);
       }
     } catch (err) {
       console.error("[Dashboard] Unexpected error:", err);
@@ -77,14 +66,13 @@ const Index = () => {
   useEffect(() => {
     const initializeDashboard = async () => {
       if (!user) return;
-      
+
       setIsSeeding(true);
       const userName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Anonymous';
-      
-      // Seed initial data if needed
+
       await ensureSampleScriptExists(user.id, userName);
       setIsSeeding(false);
-      
+
       fetchScripts();
     };
 
@@ -93,17 +81,17 @@ const Index = () => {
 
   const filteredScripts = useMemo(() => {
     return scripts.filter(script => {
-      const matchesTab = 
-        activeTab === "all" || 
+      const matchesTab =
+        activeTab === "all" ||
         (activeTab === "recent" && script.status !== 'Archived') ||
         (activeTab === "shared" && script.user_id !== user?.id) ||
         (activeTab === "archived" && script.status === 'Archived');
-        
+
       const matchesGenre = genreFilter === "all" || script.genre === genreFilter;
-      const matchesSearch = 
-        script.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchesSearch =
+        script.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         script.author.toLowerCase().includes(searchQuery.toLowerCase());
-        
+
       return matchesTab && matchesGenre && matchesSearch;
     });
   }, [scripts, activeTab, genreFilter, searchQuery, user?.id]);
@@ -154,22 +142,27 @@ const Index = () => {
         <Sidebar />
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           <div className="max-w-6xl mx-auto space-y-8">
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 tour-scripts-header">
+            <motion.header
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col md:flex-row md:items-center justify-between gap-4 tour-scripts-header"
+            >
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Script Library</h1>
                 <p className="text-muted-foreground mt-1">Manage and edit your screenplays in one place.</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => fetchScripts(false)} 
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fetchScripts(false)}
                   disabled={loading}
                   className="h-8 w-8"
                 >
                   <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                 </Button>
-                
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -189,18 +182,18 @@ const Index = () => {
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                
+
                 <div className="tour-new-script">
                   <NewScriptModal onComplete={() => fetchScripts(false)} />
                 </div>
               </div>
-            </header>
+            </motion.header>
 
             <div className="tour-stats">
-              <ProductionStats 
-                totalScripts={stats.total} 
-                totalFinished={stats.finished} 
-                totalPages={stats.pages} 
+              <ProductionStats
+                totalScripts={stats.total}
+                totalFinished={stats.finished}
+                totalPages={stats.pages}
                 totalCollaborators={totalCollaborators}
               />
             </div>
@@ -214,7 +207,7 @@ const Index = () => {
                   <TabsTrigger value="archived">Archived</TabsTrigger>
                 </TabsList>
               </div>
-              
+
               {(loading || isSeeding) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[...Array(6)].map((_, i) => (
@@ -222,29 +215,44 @@ const Index = () => {
                   ))}
                 </div>
               ) : filteredScripts.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredScripts.map((script) => (
-                    <ScriptCard 
-                      key={script.id} 
-                      id={script.id}
-                      title={script.title}
-                      author={script.author}
-                      status={script.status as any}
-                      genre={script.genre}
-                      lastModified={new Date(script.updated_at).toLocaleDateString()}
-                      onRename={handleRename}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </div>
+                <AnimatePresence mode="popLayout">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredScripts.map((script) => (
+                      <ScriptCard
+                        key={script.id}
+                        id={script.id}
+                        title={script.title}
+                        author={script.author}
+                        status={script.status as any}
+                        genre={script.genre}
+                        lastModified={new Date(script.updated_at).toLocaleDateString()}
+                        onRename={handleRename}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
+                </AnimatePresence>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10">
-                  <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium">No scripts found</h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Click "Create New" to start your first screenplay.
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10"
+                >
+                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                    <Film className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">No scripts found</h3>
+                  <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+                    Your screenplay library is empty. Create your first script to begin crafting your story.
                   </p>
-                </div>
+                  <NewScriptModal onComplete={() => fetchScripts(false)}>
+                    <Button className="mt-6 gap-2">
+                      <Plus size={16} />
+                      Create Your First Script
+                    </Button>
+                  </NewScriptModal>
+                </motion.div>
               )}
             </Tabs>
           </div>

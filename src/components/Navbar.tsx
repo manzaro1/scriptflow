@@ -46,7 +46,7 @@ const Navbar = ({ onSearch }: NavbarProps) => {
   };
 
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+    <nav className="border-b bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 shadow-sm shadow-border/50">
       <div className="flex h-16 items-center px-4 md:px-6 gap-2 md:gap-4">
         {/* Mobile Menu Trigger - only if authenticated */}
         {isAuthenticated && (
@@ -60,7 +60,7 @@ const Navbar = ({ onSearch }: NavbarProps) => {
               <SheetContent side="left" className="w-72 p-4">
                 <SheetHeader className="mb-6">
                   <SheetTitle className="flex items-center gap-2">
-                    <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
+                    <div className="bg-gradient-to-br from-primary to-purple-600 text-white p-1.5 rounded-lg">
                       <Film size={18} />
                     </div>
                     ScriptFlow
@@ -72,36 +72,40 @@ const Navbar = ({ onSearch }: NavbarProps) => {
           </div>
         )}
 
-        <div 
-          className="flex items-center gap-2 font-bold text-lg md:text-xl md:mr-8 cursor-pointer shrink-0" 
+        <div
+          className="flex items-center gap-2 font-bold text-lg md:text-xl md:mr-8 cursor-pointer shrink-0"
           onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
         >
-          <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-lg">
+          <div className="bg-gradient-to-br from-primary to-purple-600 text-white p-1.5 rounded-lg shadow-lg shadow-primary/20">
             <Film size={20} />
           </div>
-          <span className="hidden xs:inline">ScriptFlow</span>
-        </div>
-        
-        <div className="flex-1 flex items-center max-w-md relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input 
-            placeholder="Search scripts..." 
-            className="pl-10 bg-muted/50 border-none focus-visible:ring-1 h-9 md:h-10"
-            onChange={(e) => onSearch?.(e.target.value)}
-          />
+          <span className="hidden xs:inline tracking-tight">ScriptFlow</span>
         </div>
 
-        <div className="flex items-center gap-1 md:gap-4 ml-auto">
+        <div className="flex-1 flex items-center max-w-md relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search scripts..."
+            className="pl-10 pr-16 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary/30 h-9 md:h-10"
+            onChange={(e) => onSearch?.(e.target.value)}
+          />
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            Ctrl+K
+          </kbd>
+        </div>
+
+        <div className="flex items-center gap-1 md:gap-3 ml-auto">
           <div className="hidden sm:block">
             <ModeToggle />
           </div>
-          
+
           {isAuthenticated ? (
             <>
-              <Button variant="ghost" size="icon" className="hidden sm:flex">
+              <Button variant="ghost" size="icon" className="hidden sm:flex relative">
                 <Bell size={20} />
+                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
               </Button>
-              
+
               <div className="tour-new-script hidden xs:block">
                 <NewScriptModal>
                   <Button variant="outline" size="sm" className="gap-2">
@@ -110,16 +114,16 @@ const Navbar = ({ onSearch }: NavbarProps) => {
                   </Button>
                 </NewScriptModal>
               </div>
-              
+
               <div className="tour-profile">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 rounded-full p-0 border">
-                      <div className="h-full w-full rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                    <Button variant="ghost" className="h-9 w-9 rounded-full p-0 ring-2 ring-primary/20 hover:ring-primary/40 transition-all">
+                      <div className="h-full w-full rounded-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center overflow-hidden">
                         {user?.user_metadata?.avatar_url ? (
                           <img src={user.user_metadata.avatar_url} alt="Profile" className="h-full w-full object-cover" />
                         ) : (
-                          <User size={18} className="text-secondary-foreground" />
+                          <User size={18} className="text-primary" />
                         )}
                       </div>
                     </Button>

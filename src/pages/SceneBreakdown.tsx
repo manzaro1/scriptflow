@@ -4,18 +4,20 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import { 
-  FileSearch, 
-  MapPin, 
-  Users, 
-  Package, 
-  ChevronRight, 
+import {
+  FileSearch,
+  MapPin,
+  Users,
+  Package,
+  ChevronRight,
   ArrowLeft,
   Download,
   Printer,
   Sparkles,
   Info,
-  Loader2
+  Loader2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
+import { motion } from "framer-motion";
 
 interface ScriptBlock {
   id: string;
@@ -86,8 +89,7 @@ const SceneBreakdown = () => {
         if (block.type === 'character') {
           currentScene.cast.add(block.content);
         }
-        
-        // Simple "AI" Extraction logic for props (looking for all-caps words in action blocks)
+
         if (block.type === 'action') {
           const words = block.content.match(/[A-Z]{2,}/g);
           if (words) {
@@ -104,6 +106,13 @@ const SceneBreakdown = () => {
     if (currentScene) scenes.push(currentScene);
     return scenes;
   }, [blocks]);
+
+  const getLocationType = (location: string): { type: 'EXT' | 'INT' | 'MIXED'; icon: typeof Sun } => {
+    const upper = location.toUpperCase();
+    if (upper.startsWith('EXT')) return { type: 'EXT', icon: Sun };
+    if (upper.startsWith('INT')) return { type: 'INT', icon: Moon };
+    return { type: 'MIXED', icon: MapPin };
+  };
 
   if (loading) {
     return (
@@ -122,7 +131,12 @@ const SceneBreakdown = () => {
         <Sidebar />
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           <div className="max-w-5xl mx-auto space-y-8">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <motion.header
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+            >
               <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
                   <ArrowLeft size={20} />
@@ -142,7 +156,7 @@ const SceneBreakdown = () => {
                   Sync to Call Sheet
                 </Button>
               </div>
-            </header>
+            </motion.header>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="md:col-span-1 bg-muted/30 border-dashed">
@@ -152,15 +166,18 @@ const SceneBreakdown = () => {
                     Stats
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-2xl font-bold">{breakdown.length}</p>
+                <CardContent className="space-y-5">
+                  {/* Larger stats with circular treatment */}
+                  <div className="text-center p-3 bg-background rounded-lg border">
+                    <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl font-black text-primary">{breakdown.length}</span>
+                    </div>
                     <p className="text-[10px] text-muted-foreground uppercase font-bold">Total Scenes</p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">
-                      {totalCast}
-                    </p>
+                  <div className="text-center p-3 bg-background rounded-lg border">
+                    <div className="h-14 w-14 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl font-black text-blue-600">{totalCast}</span>
+                    </div>
                     <p className="text-[10px] text-muted-foreground uppercase font-bold">Cast Members</p>
                   </div>
                   <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800">
@@ -179,51 +196,74 @@ const SceneBreakdown = () => {
                 {breakdown.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">No scenes found in script.</div>
                 ) : (
-                  breakdown.map((scene, index) => (
-                    <Card key={scene.id} className="group hover:border-primary/50 transition-colors">
-                      <CardHeader className="p-4 bg-muted/50 border-b flex flex-row items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-bold text-sm">
-                            {index + 1}
-                          </div>
-                          <div>
-                            <CardTitle className="text-sm font-bold uppercase tracking-tight">{scene.location}</CardTitle>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="bg-background">Scene {index + 1}</Badge>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
-                          <div className="p-4 space-y-3">
-                            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                              <Users size={16} />
-                              <h4 className="text-[10px] font-black uppercase tracking-widest">Cast Needed</h4>
+                  breakdown.map((scene, index) => {
+                    const locInfo = getLocationType(scene.location);
+                    const LocIcon = locInfo.icon;
+
+                    return (
+                      <motion.div
+                        key={scene.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.06 }}
+                      >
+                        <Card className="group hover:border-primary/50 transition-colors overflow-hidden">
+                          <CardHeader className="p-4 bg-muted/50 border-b flex flex-row items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {/* Gradient number badge */}
+                              <div className="h-9 w-9 bg-gradient-to-br from-primary to-purple-600 text-white rounded-lg flex items-center justify-center font-black text-sm shadow-md shadow-primary/20">
+                                {index + 1}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {/* Location type icon */}
+                                <LocIcon size={14} className={locInfo.type === 'EXT' ? 'text-amber-500' : 'text-blue-500'} />
+                                <CardTitle className="text-sm font-bold uppercase tracking-tight">{scene.location}</CardTitle>
+                              </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                              {Array.from(scene.cast).map((actor: any) => (
-                                <Badge key={actor} variant="secondary" className="font-bold">{actor}</Badge>
-                              ))}
-                              {scene.cast.size === 0 && <span className="text-xs text-muted-foreground italic">No cast identified</span>}
+                            <Badge variant="outline" className="bg-background">
+                              <span className="font-mono text-[10px] font-bold">{locInfo.type}</span>
+                            </Badge>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+                              <div className="p-4 space-y-3">
+                                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                                  <Users size={16} />
+                                  <h4 className="text-[10px] font-black uppercase tracking-widest">Cast Needed</h4>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {Array.from(scene.cast).map((actor: any) => (
+                                    <div key={actor} className="flex items-center gap-1.5">
+                                      {/* Character initial avatar */}
+                                      <div className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[9px] font-black text-blue-700 dark:text-blue-400">
+                                        {actor[0]}
+                                      </div>
+                                      <Badge variant="secondary" className="font-bold">{actor}</Badge>
+                                    </div>
+                                  ))}
+                                  {scene.cast.size === 0 && <span className="text-xs text-muted-foreground italic">No cast identified</span>}
+                                </div>
+                              </div>
+                              <div className="p-4 space-y-3">
+                                <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                                  <Package size={16} />
+                                  <h4 className="text-[10px] font-black uppercase tracking-widest">Props / Set Items</h4>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {Array.from(scene.props).map((prop: any) => (
+                                    <Badge key={prop} variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
+                                      {prop}
+                                    </Badge>
+                                  ))}
+                                  {scene.props.size === 0 && <span className="text-xs text-muted-foreground italic">No props identified</span>}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="p-4 space-y-3">
-                            <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
-                              <Package size={16} />
-                              <h4 className="text-[10px] font-black uppercase tracking-widest">Props / Set Items</h4>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {Array.from(scene.props).map((prop: any) => (
-                                <Badge key={prop} variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
-                                  {prop}
-                                </Badge>
-                              ))}
-                              {scene.props.size === 0 && <span className="text-xs text-muted-foreground italic">No props identified</span>}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    );
+                  })
                 )}
               </div>
             </div>
