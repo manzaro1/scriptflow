@@ -41,6 +41,7 @@ import DialogueFeedback from "@/components/DialogueFeedback";
 import CollaboratorStack from "@/components/CollaboratorStack";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/hooks/use-auth";
 
 type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
 
@@ -53,6 +54,7 @@ interface ScriptBlock {
 const ScriptEditor = () => {
   const [searchParams] = useSearchParams();
   const scriptId = searchParams.get('id');
+  const { user: authUser } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,9 +75,7 @@ const ScriptEditor = () => {
 
   useEffect(() => {
     const fetchScript = async () => {
-      if (!scriptId) return;
-
-      const { data: { user } } = await supabase.auth.getUser();
+      if (!scriptId || !authUser) return;
 
       const { data, error } = await supabase
         .from('scripts')
@@ -89,18 +89,20 @@ const ScriptEditor = () => {
         setScriptTitle(data.title);
         setScriptAuthor(data.author);
 
-        if (data.user_id !== user?.id) {
+        // Only check collaborator role if the script doesn't belong to current user
+        if (data.user_id !== authUser.id) {
           const { data: collaborator } = await supabase
             .from('script_collaborators')
             .select('role')
             .eq('script_id', scriptId)
-            .eq('user_id', user?.id)
+            .eq('user_id', authUser.id)
             .single();
 
           if (!collaborator || collaborator.role === 'viewer') {
             setIsReadOnly(true);
           }
         }
+        // If data.user_id === authUser.id, isReadOnly stays false (the default)
 
         const loadedContent = Array.isArray(data.content) && data.content.length > 0
           ? data.content
@@ -112,7 +114,7 @@ const ScriptEditor = () => {
     };
 
     fetchScript();
-  }, [scriptId]);
+  }, [scriptId, authUser]);
 
   useEffect(() => {
     if (focusedBlockId && blockRefs.current[focusedBlockId] && !isReadOnly) {
