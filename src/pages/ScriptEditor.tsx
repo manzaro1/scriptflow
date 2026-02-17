@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -71,7 +71,16 @@ const ScriptEditor = () => {
   const [isReadOnly, setIsReadOnly] = useState(false);
 
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  // Track which block needs auto-focus after a structural change (Enter/Backspace)
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
   const blockRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  // Mutable ref that always holds the latest blocks without triggering re-renders
+  const blocksRef = useRef<ScriptBlock[]>([]);
+
+  // Keep blocksRef in sync whenever blocks state changes
+  useEffect(() => {
+    blocksRef.current = blocks;
+  }, [blocks]);
 
   useEffect(() => {
     const fetchScript = async () => {
@@ -89,7 +98,6 @@ const ScriptEditor = () => {
         setScriptTitle(data.title);
         setScriptAuthor(data.author);
 
-        // Only check collaborator role if the script doesn't belong to current user
         if (data.user_id !== authUser.id) {
           const { data: collaborator } = await supabase
             .from('script_collaborators')
@@ -102,11 +110,15 @@ const ScriptEditor = () => {
             setIsReadOnly(true);
           }
         }
-        // If data.user_id === authUser.id, isReadOnly stays false (the default)
 
-        const loadedContent = Array.isArray(data.content) && data.content.length > 0
+        const rawContent = Array.isArray(data.content) && data.content.length > 0
           ? data.content
           : [{ id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' }];
+
+        const loadedContent = rawContent.map((block: ScriptBlock) => ({
+          ...block,
+          content: sanitizeInput(block.content)
+        }));
 
         setBlocks(loadedContent);
       }
@@ -116,28 +128,38 @@ const ScriptEditor = () => {
     fetchScript();
   }, [scriptId, authUser]);
 
+  // Focus management: only runs when a structural change (Enter/Backspace) sets pendingFocusId
   useEffect(() => {
-    if (focusedBlockId && blockRefs.current[focusedBlockId] && !isReadOnly) {
-      const element = blockRefs.current[focusedBlockId];
+    if (pendingFocusId && blockRefs.current[pendingFocusId] && !isReadOnly) {
+      const element = blockRefs.current[pendingFocusId];
       element?.focus();
 
       const range = document.createRange();
       const sel = window.getSelection();
-      if (element?.childNodes.length) {
+      if (element && element.childNodes.length) {
         range.setStart(element.childNodes[0], element.innerText.length);
         range.collapse(true);
         sel?.removeAllRanges();
         sel?.addRange(range);
+      } else if (element) {
+        range.setStart(element, 0);
+        range.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
       }
+      setPendingFocusId(null);
     }
-  }, [focusedBlockId, isReadOnly]);
+  }, [pendingFocusId, blocks, isReadOnly]);
 
   const handleSave = async () => {
     if (!scriptId || isReadOnly) return;
     setSaving(true);
     const toastId = showLoading("Saving changes...");
 
-    const sanitizedBlocks = blocks.map(block => ({
+    // Flush latest DOM content into blocksRef before saving
+    flushAllBlockContent();
+
+    const sanitizedBlocks = blocksRef.current.map(block => ({
       ...block,
       content: sanitizeInput(block.content)
     }));
@@ -165,6 +187,29 @@ const ScriptEditor = () => {
 
   const markUnsaved = () => setHasUnsaved(true);
 
+  /** Read the current DOM text from all block refs and sync into blocksRef */
+  const flushAllBlockContent = () => {
+    const updated = blocksRef.current.map(block => {
+      const el = blockRefs.current[block.id];
+      if (el) {
+        return { ...block, content: el.innerText };
+      }
+      return block;
+    });
+    blocksRef.current = updated;
+    setBlocks(updated);
+  };
+
+  /** Read a single block's DOM text and update blocksRef (no React state update) */
+  const syncBlockFromDOM = (blockId: string) => {
+    const el = blockRefs.current[blockId];
+    if (!el) return;
+    const content = el.innerText;
+    blocksRef.current = blocksRef.current.map(b =>
+      b.id === blockId ? { ...b, content } : b
+    );
+  };
+
   const getNextBlockType = (currentType: ElementType): ElementType => {
     switch (currentType) {
       case 'slugline':
@@ -182,81 +227,107 @@ const ScriptEditor = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     if (isReadOnly) return;
-    const block = blocks[index];
+    const block = blocksRef.current[index];
+    if (!block) return;
 
     if (e.key === 'Tab') {
       e.preventDefault();
+      // Flush content from DOM first
+      syncBlockFromDOM(block.id);
       const types: ElementType[] = ['action', 'character', 'parenthetical', 'dialogue', 'slugline'];
       const currentIndex = types.indexOf(block.type);
       const nextType = types[(currentIndex + 1) % types.length];
 
-      const newBlocks = [...blocks];
-      newBlocks[index] = { ...block, type: nextType };
-      setBlocks(newBlocks);
+      const updated = blocksRef.current.map((b, i) =>
+        i === index ? { ...b, type: nextType } : b
+      );
+      blocksRef.current = updated;
+      setBlocks(updated);
       markUnsaved();
       return;
     }
 
     if (e.key === 'Enter') {
       e.preventDefault();
+      // Flush current block content from DOM
+      syncBlockFromDOM(block.id);
       const nextType = getNextBlockType(block.type);
       const newId = Math.random().toString(36).substr(2, 9);
-      const newBlocks = [...blocks];
+      const newBlocks = [...blocksRef.current];
       newBlocks.splice(index + 1, 0, { id: newId, type: nextType, content: '' });
+      blocksRef.current = newBlocks;
       setBlocks(newBlocks);
-      setFocusedBlockId(newId);
+      setPendingFocusId(newId);
       markUnsaved();
       return;
     }
 
-    if (e.key === 'Backspace' && block.content === '' && blocks.length > 1) {
-      e.preventDefault();
-      const prevBlockId = blocks[index - 1]?.id;
-      const newBlocks = blocks.filter((_, i) => i !== index);
-      setBlocks(newBlocks);
-      if (prevBlockId) setFocusedBlockId(prevBlockId);
-      markUnsaved();
-      return;
+    if (e.key === 'Backspace') {
+      const el = blockRefs.current[block.id];
+      const content = el?.innerText || '';
+      if (content === '' && blocksRef.current.length > 1) {
+        e.preventDefault();
+        const focusTargetId = blocksRef.current[index - 1]?.id || blocksRef.current[index + 1]?.id;
+        const newBlocks = blocksRef.current.filter((_, i) => i !== index);
+        blocksRef.current = newBlocks;
+        setBlocks(newBlocks);
+        if (focusTargetId) setPendingFocusId(focusTargetId);
+        markUnsaved();
+        return;
+      }
     }
   };
 
-  const handleInput = (e: React.FormEvent<HTMLDivElement>, index: number) => {
+  /** onBlur: sync content from DOM to state, detect type from content */
+  const handleBlur = (index: number) => {
     if (isReadOnly) return;
-    let content = e.currentTarget.innerText;
-    const newBlocks = [...blocks];
-    let type = newBlocks[index].type;
+    const block = blocksRef.current[index];
+    if (!block) return;
 
+    const el = blockRefs.current[block.id];
+    if (!el) return;
+
+    let content = el.innerText;
+    let type = block.type;
+
+    // Auto-detect type from content
+    const trimmed = content.trim();
     const upperContent = content.toUpperCase();
     if (upperContent.startsWith('INT.') || upperContent.startsWith('EXT.')) {
       type = 'slugline';
-    } else if (content.length > 0 && content.length < 20 && content.toUpperCase() === content) {
+    } else if (trimmed.length > 0 && trimmed.length < 25 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed)) {
       type = 'character';
     } else if (content.startsWith('(') && content.endsWith(')')) {
       type = 'parenthetical';
-    } else if (newBlocks[index - 1]?.type === 'character' || newBlocks[index - 1]?.type === 'parenthetical') {
+    } else if (blocksRef.current[index - 1]?.type === 'character' || blocksRef.current[index - 1]?.type === 'parenthetical') {
       type = 'dialogue';
     } else if (type !== 'slugline' && type !== 'character' && type !== 'parenthetical' && type !== 'dialogue') {
       type = 'action';
     }
 
+    // Auto-uppercase for sluglines and character names
     if (type === 'slugline' || type === 'character') {
       content = content.toUpperCase();
+      el.innerText = content;
     }
 
-    newBlocks[index] = { ...newBlocks[index], content, type };
-    setBlocks(newBlocks);
+    const updated = blocksRef.current.map((b, i) =>
+      i === index ? { ...b, content, type } : b
+    );
+    blocksRef.current = updated;
+    setBlocks(updated);
     markUnsaved();
   };
 
   const getBlockStyles = (type: ElementType, isFocused: boolean) => {
-    const base = "outline-none transition-all duration-150 min-h-[1.5em] rounded px-2 whitespace-pre-wrap font-screenplay text-[12pt] leading-[1] relative";
+    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded px-2 whitespace-pre-wrap font-screenplay text-[12pt] leading-[1] relative";
     const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     const focusBorder = isFocused && !isReadOnly ? "border-l-2" : "border-l-2 border-transparent";
 
     switch (type) {
       case 'character':
         return cn(base, editClass, focusBorder, isFocused && "border-l-film-violet",
-          "text-center uppercase font-bold mx-auto mb-1 mt-6",
+          "uppercase font-bold mb-1 mt-6",
           "pl-[3.7in] pr-[1in] w-full text-left");
       case 'dialogue':
         return cn(base, editClass, focusBorder, isFocused && "border-l-blue-500",
@@ -265,7 +336,7 @@ const ScriptEditor = () => {
       case 'parenthetical':
         return cn(base, editClass, focusBorder, isFocused && "border-l-purple-400",
           "italic text-sm mb-1",
-          "pl-[3.1in] pr-[2.3in] w-full text-left before:content-['('] after:content-[')']");
+          "pl-[3.1in] pr-[2.3in] w-full text-left");
       case 'slugline':
         return cn(base, editClass, focusBorder, isFocused && "border-l-film-amber",
           "uppercase font-bold mb-4 mt-8");
@@ -286,17 +357,11 @@ const ScriptEditor = () => {
     return labels[type];
   };
 
-  const renderBlockContent = (block: ScriptBlock) => {
-    if (block.type === 'parenthetical') {
-      return block.content.replace(/^\(|\)$/g, '');
-    }
-    return block.content;
-  };
-
   const getCharacterForDialogue = (index: number): string => {
+    const currentBlocks = blocksRef.current;
     for (let i = index - 1; i >= 0; i--) {
-      if (blocks[i].type === 'character') return blocks[i].content;
-      if (blocks[i].type === 'slugline' || blocks[i].type === 'action') break;
+      if (currentBlocks[i].type === 'character') return currentBlocks[i].content;
+      if (currentBlocks[i].type === 'slugline' || currentBlocks[i].type === 'action') break;
     }
     return 'UNKNOWN';
   };
@@ -510,23 +575,24 @@ const ScriptEditor = () => {
                     </div>
                   )}
                   <div
-                    ref={el => blockRefs.current[block.id] = el}
+                    ref={el => { blockRefs.current[block.id] = el; }}
                     contentEditable={!isReadOnly}
                     suppressContentEditableWarning
                     className={getBlockStyles(block.type, focusedBlockId === block.id)}
                     onKeyDown={(e) => handleKeyDown(e, index)}
-                    onInput={(e) => handleInput(e, index)}
+                    onBlur={() => handleBlur(index)}
                     onFocus={() => setFocusedBlockId(block.id)}
-                  >
-                    {renderBlockContent(block)}
-                    {block.type === 'dialogue' && !isReadOnly && (
+                    dangerouslySetInnerHTML={{ __html: block.content }}
+                  />
+                  {block.type === 'dialogue' && !isReadOnly && (
+                    <div className="absolute -left-8 top-1/2 -translate-y-1/2">
                       <DialogueFeedback
                         characterName={getCharacterForDialogue(index)}
                         dialogue={block.content}
                         consistencyScore={95}
                       />
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

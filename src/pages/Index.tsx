@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ScriptCard from "@/components/ScriptCard";
@@ -10,7 +11,7 @@ import OnboardingTour from "@/components/OnboardingTour";
 import ScriptCardSkeleton from "@/components/ScriptCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Filter, SearchX, Loader2, RefreshCw, Film, Plus } from 'lucide-react';
+import { Filter, SearchX, Loader2, RefreshCw, Film, Plus, Sparkles, ArrowRight, FileText, BrainCircuit, Clapperboard } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
@@ -22,15 +23,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
-import { ensureSampleScriptExists } from "@/utils/script-seeder";
 import { showError } from '@/utils/toast';
 import { motion, AnimatePresence } from "framer-motion";
 
 const Index = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [scripts, setScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSeeding, setIsSeeding] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,19 +64,7 @@ const Index = () => {
   }, [user]);
 
   useEffect(() => {
-    const initializeDashboard = async () => {
-      if (!user) return;
-
-      setIsSeeding(true);
-      const userName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'Anonymous';
-
-      await ensureSampleScriptExists(user.id, userName);
-      setIsSeeding(false);
-
-      fetchScripts();
-    };
-
-    initializeDashboard();
+    if (user) fetchScripts();
   }, [user, fetchScripts]);
 
   const filteredScripts = useMemo(() => {
@@ -133,6 +121,110 @@ const Index = () => {
       setScripts(prev => prev.filter(s => s.id !== id));
     }
   };
+
+  // New user welcome / onboarding screen
+  const isNewUser = !loading && scripts.length === 0;
+
+  if (isNewUser) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar onSearch={setSearchQuery} />
+        <div className="flex flex-1">
+          <Sidebar />
+          <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+            <div className="max-w-3xl mx-auto pt-12">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-center space-y-6"
+              >
+                <div className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-xl shadow-primary/25">
+                  <Film className="h-10 w-10 text-white" />
+                </div>
+
+                <div className="space-y-3">
+                  <h1 className="text-4xl font-black tracking-tight">
+                    Welcome to ScriptFlow
+                    {user?.user_metadata?.first_name ? `, ${user.user_metadata.first_name}` : ''}!
+                  </h1>
+                  <p className="text-lg text-muted-foreground max-w-md mx-auto leading-relaxed">
+                    Your professional screenwriting studio is ready. Create your first screenplay to get started.
+                  </p>
+                </div>
+
+                <div className="pt-4">
+                  <NewScriptModal onComplete={() => fetchScripts(false)}>
+                    <Button size="lg" className="h-14 px-8 text-lg font-bold gap-3 shadow-xl shadow-primary/25">
+                      <Plus size={22} />
+                      Create Your First Script
+                      <ArrowRight size={20} />
+                    </Button>
+                  </NewScriptModal>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16"
+              >
+                {[
+                  {
+                    icon: FileText,
+                    title: "Write",
+                    description: "Industry-standard screenplay editor with proper formatting, scene headers, and character names.",
+                    color: "text-blue-600",
+                    bg: "bg-blue-500/10"
+                  },
+                  {
+                    icon: BrainCircuit,
+                    title: "Analyze",
+                    description: "AI monitors character consistency, pacing, and narrative tension in real-time as you write.",
+                    color: "text-purple-600",
+                    bg: "bg-purple-500/10"
+                  },
+                  {
+                    icon: Clapperboard,
+                    title: "Produce",
+                    description: "Generate call sheets, scene breakdowns, and storyboards directly from your script.",
+                    color: "text-orange-600",
+                    bg: "bg-orange-500/10"
+                  },
+                ].map((feature, i) => (
+                  <motion.div
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.5 + i * 0.1 }}
+                    className="p-6 rounded-xl border bg-card text-center space-y-3"
+                  >
+                    <div className={`h-12 w-12 rounded-xl ${feature.bg} flex items-center justify-center mx-auto`}>
+                      <feature.icon className={`h-6 w-6 ${feature.color}`} />
+                    </div>
+                    <h3 className="font-bold">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.8 }}
+                className="mt-12 text-center"
+              >
+                <p className="text-xs text-muted-foreground">
+                  Press <kbd className="px-1.5 py-0.5 rounded border bg-muted font-mono text-[10px]">Tab</kbd> in the editor to cycle block types &middot; <kbd className="px-1.5 py-0.5 rounded border bg-muted font-mono text-[10px]">Enter</kbd> for new block &middot; Type <span className="font-mono">INT.</span> or <span className="font-mono">EXT.</span> for scene headings
+                </p>
+              </motion.div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -208,7 +300,7 @@ const Index = () => {
                 </TabsList>
               </div>
 
-              {(loading || isSeeding) ? (
+              {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[...Array(6)].map((_, i) => (
                     <ScriptCardSkeleton key={i} />
@@ -240,16 +332,16 @@ const Index = () => {
                   className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10"
                 >
                   <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                    <Film className="h-8 w-8 text-primary" />
+                    <SearchX className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">No scripts found</h3>
+                  <h3 className="text-xl font-semibold">No matches found</h3>
                   <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-                    Your screenplay library is empty. Create your first script to begin crafting your story.
+                    Try adjusting your search or filter criteria, or create a new script.
                   </p>
                   <NewScriptModal onComplete={() => fetchScripts(false)}>
                     <Button className="mt-6 gap-2">
                       <Plus size={16} />
-                      Create Your First Script
+                      Create New Script
                     </Button>
                   </NewScriptModal>
                 </motion.div>
