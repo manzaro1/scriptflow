@@ -9,10 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  CreditCard, 
-  User, 
-  Shield, 
+import {
+  CreditCard,
+  User,
+  Shield,
   Users,
   UserPlus,
   Mail,
@@ -20,7 +20,14 @@ import {
   Trash2,
   ShieldCheck,
   UserMinus,
-  Zap
+  Zap,
+  BrainCircuit,
+  KeyRound,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import {
   Select,
@@ -37,11 +44,70 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
+import { getGeminiKey, setGeminiKey, removeGeminiKey, testGeminiKey } from "@/utils/ai";
+import { useSearchParams } from "react-router-dom";
 
 const Profile = () => {
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'account';
+
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // AI key state
+  const [aiKeyInput, setAiKeyInput] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [hasKey, setHasKey] = useState(false);
+  const [testingKey, setTestingKey] = useState(false);
+  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+
+  useEffect(() => {
+    const existing = getGeminiKey();
+    if (existing) {
+      setHasKey(true);
+      setAiKeyInput(existing);
+    }
+  }, []);
+
+  const handleSaveKey = () => {
+    const trimmed = aiKeyInput.trim();
+    if (!trimmed) {
+      showError("Please enter an API key");
+      return;
+    }
+    setGeminiKey(trimmed);
+    setHasKey(true);
+    setTestResult(null);
+    showSuccess("API key saved");
+  };
+
+  const handleRemoveKey = () => {
+    removeGeminiKey();
+    setAiKeyInput('');
+    setHasKey(false);
+    setTestResult(null);
+    showSuccess("API key removed");
+  };
+
+  const handleTestKey = async () => {
+    const key = aiKeyInput.trim();
+    if (!key) {
+      showError("Enter a key first");
+      return;
+    }
+    setTestingKey(true);
+    setTestResult(null);
+    const ok = await testGeminiKey(key);
+    setTestingKey(false);
+    setTestResult(ok ? 'success' : 'error');
+    if (ok) {
+      showSuccess("API key is valid");
+    } else {
+      showError("API key is invalid or expired");
+    }
+  };
+
   const [teamMembers, setTeamMembers] = useState([
     { id: 1, name: 'Alex Rivers', email: 'alex@example.com', role: 'Owner', status: 'Active', avatar: 'AR' },
     { id: 2, name: 'John Director', email: 'john@production.com', role: 'Admin', status: 'Active', avatar: 'JD' },
@@ -97,7 +163,7 @@ const Profile = () => {
               <p className="text-muted-foreground mt-1">Manage your account settings, billing, and team collaboration.</p>
             </header>
 
-            <Tabs defaultValue="account" className="space-y-6">
+            <Tabs defaultValue={defaultTab} className="space-y-6">
               <TabsList className="bg-muted/50 p-1">
                 <TabsTrigger value="account" className="gap-2">
                   <User size={16} />
@@ -114,6 +180,10 @@ const Profile = () => {
                 <TabsTrigger value="security" className="gap-2">
                   <Shield size={16} />
                   Security
+                </TabsTrigger>
+                <TabsTrigger value="ai" className="gap-2">
+                  <BrainCircuit size={16} />
+                  AI
                 </TabsTrigger>
               </TabsList>
 
@@ -337,6 +407,87 @@ const Profile = () => {
                   </CardContent>
                   <CardFooter className="border-t px-6 py-4">
                     <Button onClick={() => showSuccess("Password updated")}>Update Password</Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="ai" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-lg">
+                        <BrainCircuit size={20} />
+                      </div>
+                      <div>
+                        <CardTitle>AI Integration</CardTitle>
+                        <CardDescription>Connect your Google Gemini API key to enable AI-powered screenwriting features.</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="gemini-key">Gemini API Key</Label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="gemini-key"
+                            className="pl-10 pr-10 font-mono text-sm"
+                            type={showKey ? "text" : "password"}
+                            placeholder="AIzaSy..."
+                            value={aiKeyInput}
+                            onChange={(e) => { setAiKeyInput(e.target.value); setTestResult(null); }}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => setShowKey(!showKey)}
+                          >
+                            {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        <Button variant="outline" onClick={handleTestKey} disabled={testingKey || !aiKeyInput.trim()}>
+                          {testingKey ? <Loader2 size={16} className="animate-spin" /> : "Test"}
+                        </Button>
+                      </div>
+                      {testResult === 'success' && (
+                        <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                          <CheckCircle2 size={12} /> Key is valid and working
+                        </p>
+                      )}
+                      {testResult === 'error' && (
+                        <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                          <XCircle size={12} /> Key is invalid or expired
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Your key is stored locally in this browser and never sent to our servers. Get a free key from{' '}
+                        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
+                          Google AI Studio
+                        </a>.
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
+                      <p className="text-sm font-semibold">AI features powered by your key:</p>
+                      <ul className="text-xs text-muted-foreground space-y-1.5">
+                        <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-purple-500" /> Autocomplete — press Ctrl+J while writing</li>
+                        <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Scene Generator — generate full scenes from a premise</li>
+                        <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Dialogue Feedback — real AI analysis on every line</li>
+                        <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Character Chat — workshop dialogue in-character</li>
+                        <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Production Overseer — full script analysis and pacing</li>
+                      </ul>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="border-t px-6 py-4 flex justify-between">
+                    {hasKey && (
+                      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={handleRemoveKey}>
+                        Remove Key
+                      </Button>
+                    )}
+                    <Button onClick={handleSaveKey} disabled={!aiKeyInput.trim()} className="ml-auto">
+                      {hasKey ? 'Update Key' : 'Save Key'}
+                    </Button>
                   </CardFooter>
                 </Card>
               </TabsContent>

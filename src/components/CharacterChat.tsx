@@ -1,27 +1,40 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Sparkles, BrainCircuit, Loader2 } from 'lucide-react';
+import { Send, Loader2, BrainCircuit, ArrowLeft, Copy } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { showSuccess, showError } from "@/utils/toast";
+import { callAIFunction, hasGeminiKey } from "@/utils/ai";
+import NoApiKeyPrompt from "@/components/NoApiKeyPrompt";
+
+interface ScriptBlock {
+  id: string;
+  type: string;
+  content: string;
+}
 
 interface Message {
   id: string;
   role: 'user' | 'character';
   content: string;
-  timestamp: Date;
 }
 
-const CharacterChat = ({ characterName }: { characterName: string }) => {
+interface CharacterChatProps {
+  characterName: string;
+  scriptBlocks: ScriptBlock[];
+  onBack: () => void;
+}
+
+const CharacterChat = ({ characterName, scriptBlocks, onBack }: CharacterChatProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'character',
-      content: `Hello. I am ${characterName}. I can feel my scenes coming to life. How can I help you sharpen my voice today?`,
-      timestamp: new Date()
+      content: `I'm ${characterName}. Ask me about my motivations, try new dialogue on me, or let's workshop a scene together.`
     }
   ]);
   const [input, setInput] = useState('');
@@ -34,107 +47,149 @@ const CharacterChat = ({ characterName }: { characterName: string }) => {
     }
   }, [messages]);
 
-  const simulateCharacterResponse = async (userMessageContent: string) => {
-    setIsResponding(true);
-    
-    // --- Conceptual Supabase Edge Function Call ---
-    // In a real implementation, this would be:
-    // const { data, error } = await supabase.functions.invoke('chat-with-character', { body: { userMessageContent, characterName } });
-    
-    await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000)); // Simulate network delay
-    
-    const responses = [
-      `As ${characterName}, I feel that my current dialogue in Scene 4 is too soft. I would be more aggressive there.`,
-      "That decision doesn't align with my motivation. I'm here for revenge, not for reconciliation.",
-      "The way you wrote that action line makes me feel vulnerable. Is that intentional?",
-      "I like where this is going, but my nationality would influence the slang I use here."
-    ];
-    
-    const charMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'character',
-      content: responses[Math.floor(Math.random() * responses.length)],
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, charMessage]);
-    setIsResponding(false);
+  // Extract this character's dialogue from the script
+  const getCharacterDialogue = (): { scene: string; line: string }[] => {
+    const dialogueLines: { scene: string; line: string }[] = [];
+    let currentScene = 'Unknown Scene';
+
+    for (let i = 0; i < scriptBlocks.length; i++) {
+      const block = scriptBlocks[i];
+      if (block.type === 'slugline') {
+        currentScene = block.content;
+      }
+      if (block.type === 'character' && block.content.toUpperCase() === characterName.toUpperCase()) {
+        // Next block(s) should be their dialogue
+        for (let j = i + 1; j < scriptBlocks.length; j++) {
+          if (scriptBlocks[j].type === 'dialogue') {
+            dialogueLines.push({ scene: currentScene, line: scriptBlocks[j].content });
+          } else if (scriptBlocks[j].type !== 'parenthetical') {
+            break;
+          }
+        }
+      }
+    }
+    return dialogueLines;
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() || isResponding) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: input,
-      timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     const messageToSend = input;
     setInput('');
-    
-    simulateCharacterResponse(messageToSend);
+    setIsResponding(true);
+
+    const { data, error } = await callAIFunction('ai-character-chat', {
+      characterName,
+      userMessage: messageToSend,
+      characterDialogue: getCharacterDialogue(),
+      conversationHistory: updatedMessages.map(m => ({ role: m.role, content: m.content })),
+    });
+
+    setIsResponding(false);
+
+    if (error) {
+      if (error !== 'NO_API_KEY') {
+        showError(error);
+      }
+      return;
+    }
+
+    if (data?.response) {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'character',
+        content: data.response,
+      }]);
+    }
   };
 
+  const copyMessage = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showSuccess("Copied to clipboard");
+  };
+
+  if (!hasGeminiKey()) {
+    return (
+      <div className="h-full flex items-center justify-center p-4">
+        <NoApiKeyPrompt />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full bg-white border rounded-xl overflow-hidden shadow-sm">
-      <div className="p-3 border-b bg-muted/30 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Avatar className="h-8 w-8 border">
-              <AvatarFallback className="bg-purple-100 text-purple-700 text-xs">{characterName.substring(0,2)}</AvatarFallback>
-            </Avatar>
-            <div className="absolute -bottom-1 -right-1 bg-green-500 h-2.5 w-2.5 rounded-full border-2 border-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold">{characterName}</p>
-            <Badge variant="outline" className="text-[10px] h-4 px-1 text-purple-600 border-purple-200">AI Actor Mode</Badge>
-          </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="p-3 border-b bg-muted/30 flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onBack}>
+          <ArrowLeft size={14} />
+        </Button>
+        <div className="relative">
+          <Avatar className="h-7 w-7 border">
+            <AvatarFallback className="bg-purple-100 text-purple-700 text-[10px] font-bold">{characterName.substring(0, 2)}</AvatarFallback>
+          </Avatar>
+          <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 h-2 w-2 rounded-full border border-white" />
         </div>
-        <BrainCircuit size={16} className="text-muted-foreground" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold truncate">{characterName}</p>
+          <Badge variant="outline" className="text-[9px] h-3.5 px-1 text-purple-600 border-purple-200">AI Actor</Badge>
+        </div>
       </div>
 
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 p-3" ref={scrollRef}>
+        <div className="space-y-3">
           {messages.map((msg) => (
-            <div 
-              key={msg.id} 
+            <div
+              key={msg.id}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                msg.role === 'user' 
-                  ? 'bg-primary text-primary-foreground rounded-tr-none' 
+              <div className={`max-w-[90%] rounded-2xl px-3 py-2 text-xs leading-relaxed group relative ${
+                msg.role === 'user'
+                  ? 'bg-primary text-primary-foreground rounded-tr-none'
                   : 'bg-muted rounded-tl-none border'
               }`}>
                 {msg.content}
+                {msg.role === 'character' && msg.id !== '1' && (
+                  <button
+                    className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-background border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => copyMessage(msg.content)}
+                    title="Copy to clipboard"
+                  >
+                    <Copy size={10} />
+                  </button>
+                )}
               </div>
             </div>
           ))}
           {isResponding && (
             <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl px-3 py-2 text-sm bg-muted rounded-tl-none border flex items-center gap-2">
-                <Loader2 size={14} className="animate-spin text-purple-600" />
-                <span className="text-muted-foreground italic">Thinking...</span>
+              <div className="max-w-[90%] rounded-2xl px-3 py-2 text-xs bg-muted rounded-tl-none border flex items-center gap-2">
+                <Loader2 size={12} className="animate-spin text-purple-600" />
+                <span className="text-muted-foreground italic">Thinking in character...</span>
               </div>
             </div>
           )}
         </div>
       </ScrollArea>
 
-      <div className="p-3 border-t bg-white">
+      <div className="p-3 border-t">
         <div className="flex gap-2">
-          <Input 
-            placeholder={`Ask ${characterName} about their feelings...`} 
+          <Input
+            placeholder={`Talk to ${characterName}...`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            className="text-xs h-9"
+            className="text-xs h-8"
             disabled={isResponding}
           />
-          <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={!input.trim() || isResponding}>
-            {isResponding ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleSend} disabled={!input.trim() || isResponding}>
+            {isResponding ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
           </Button>
         </div>
       </div>

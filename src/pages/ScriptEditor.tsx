@@ -17,7 +17,9 @@ import {
   Files,
   Loader2,
   Lock,
-  Hash
+  Hash,
+  Wand2,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -39,9 +41,12 @@ import StoryboardGenerator from "@/components/StoryboardGenerator";
 import RenameScriptModal from "@/components/RenameScriptModal";
 import DialogueFeedback from "@/components/DialogueFeedback";
 import CollaboratorStack from "@/components/CollaboratorStack";
+import SceneGeneratorModal from "@/components/SceneGeneratorModal";
+import NoApiKeyPrompt from "@/components/NoApiKeyPrompt";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
+import { hasGeminiKey, callAIFunction } from "@/utils/ai";
 
 type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
 
@@ -64,6 +69,12 @@ const ScriptEditor = () => {
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [isStoryboardOpen, setIsStoryboardOpen] = useState(false);
   const [isRenameModalOpen, setIsRenameModal] = useState(false);
+  const [isSceneGenOpen, setIsSceneGenOpen] = useState(false);
+
+  // AI Autocomplete state
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [suggestionBlockId, setSuggestionBlockId] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const [scriptTitle, setScriptTitle] = useState("");
   const [scriptAuthor, setScriptAuthor] = useState("");
@@ -211,26 +222,115 @@ const ScriptEditor = () => {
   };
 
   const getNextBlockType = (currentType: ElementType): ElementType => {
-    switch (currentType) {
-      case 'slugline':
-      case 'action':
-        return 'character';
-      case 'character':
-        return 'dialogue';
-      case 'dialogue':
-      case 'parenthetical':
-        return 'action';
-      default:
-        return 'action';
-    }
+    // Enter always creates a new action block — user can change type with Tab
+    return 'action';
   };
+
+  /** AI Autocomplete: fetch a suggestion from Gemini */
+  const triggerAutocomplete = useCallback(async () => {
+    if (isReadOnly || !focusedBlockId || !hasGeminiKey()) return;
+
+    // Sync current block from DOM first
+    syncBlockFromDOM(focusedBlockId);
+    const currentIndex = blocksRef.current.findIndex(b => b.id === focusedBlockId);
+    if (currentIndex === -1) return;
+
+    setAiLoading(true);
+    setSuggestionBlockId(focusedBlockId);
+    setAiSuggestion(null);
+
+    const { data, error } = await callAIFunction('ai-autocomplete', {
+      blocks: blocksRef.current,
+      currentBlockIndex: currentIndex,
+    });
+
+    setAiLoading(false);
+
+    if (error === 'NO_API_KEY') {
+      showError("Set up your Gemini API key in Settings > AI");
+      setSuggestionBlockId(null);
+      return;
+    }
+    if (error || !data?.suggestion) {
+      showError(error || "Autocomplete failed");
+      setSuggestionBlockId(null);
+      return;
+    }
+
+    setAiSuggestion(data.suggestion);
+  }, [focusedBlockId, isReadOnly]);
+
+  /** Accept the AI suggestion into the current block */
+  const acceptSuggestion = useCallback(() => {
+    if (!aiSuggestion || !suggestionBlockId) return;
+
+    const el = blockRefs.current[suggestionBlockId];
+    if (el) {
+      const current = el.innerText;
+      const separator = current.trim().length > 0 ? ' ' : '';
+      el.innerText = current + separator + aiSuggestion;
+      syncBlockFromDOM(suggestionBlockId);
+      markUnsaved();
+    }
+
+    setAiSuggestion(null);
+    setSuggestionBlockId(null);
+  }, [aiSuggestion, suggestionBlockId]);
+
+  const dismissSuggestion = useCallback(() => {
+    setAiSuggestion(null);
+    setSuggestionBlockId(null);
+    setAiLoading(false);
+  }, []);
+
+  /** Insert generated scene blocks at the current cursor position */
+  const insertGeneratedBlocks = useCallback((newBlocks: ScriptBlock[]) => {
+    const currentIndex = focusedBlockId
+      ? blocksRef.current.findIndex(b => b.id === focusedBlockId)
+      : blocksRef.current.length - 1;
+
+    const insertAt = currentIndex + 1;
+    const updated = [
+      ...blocksRef.current.slice(0, insertAt),
+      ...newBlocks,
+      ...blocksRef.current.slice(insertAt),
+    ];
+    blocksRef.current = updated;
+    setBlocks(updated);
+    markUnsaved();
+
+    if (newBlocks.length > 0) {
+      setPendingFocusId(newBlocks[0].id);
+    }
+  }, [focusedBlockId]);
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     if (isReadOnly) return;
     const block = blocksRef.current[index];
     if (!block) return;
 
+    // Ctrl+J / Cmd+J: trigger AI autocomplete
+    if (e.key === 'j' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      triggerAutocomplete();
+      return;
+    }
+
+    // Escape: dismiss AI suggestion
+    if (e.key === 'Escape' && (aiSuggestion || aiLoading)) {
+      e.preventDefault();
+      dismissSuggestion();
+      return;
+    }
+
     if (e.key === 'Tab') {
+      // If AI suggestion is showing, Tab accepts it
+      if (aiSuggestion && suggestionBlockId === block.id) {
+        e.preventDefault();
+        acceptSuggestion();
+        return;
+      }
+
       e.preventDefault();
       // Flush content from DOM first
       syncBlockFromDOM(block.id);
@@ -290,19 +390,10 @@ const ScriptEditor = () => {
     let content = el.innerText;
     let type = block.type;
 
-    // Auto-detect type from content
-    const trimmed = content.trim();
+    // Only auto-detect sluglines from INT./EXT. prefix — all other types stay as the user set them
     const upperContent = content.toUpperCase();
     if (upperContent.startsWith('INT.') || upperContent.startsWith('EXT.')) {
       type = 'slugline';
-    } else if (trimmed.length > 0 && trimmed.length < 25 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed)) {
-      type = 'character';
-    } else if (content.startsWith('(') && content.endsWith(')')) {
-      type = 'parenthetical';
-    } else if (blocksRef.current[index - 1]?.type === 'character' || blocksRef.current[index - 1]?.type === 'parenthetical') {
-      type = 'dialogue';
-    } else if (type !== 'slugline' && type !== 'character' && type !== 'parenthetical' && type !== 'dialogue') {
-      type = 'action';
     }
 
     // Auto-uppercase for sluglines and character names
@@ -320,7 +411,7 @@ const ScriptEditor = () => {
   };
 
   const getBlockStyles = (type: ElementType, isFocused: boolean) => {
-    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded px-2 whitespace-pre-wrap font-screenplay text-[12pt] leading-[1] relative";
+    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded px-2 whitespace-pre-wrap font-screenplay text-[12pt] leading-normal relative";
     const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     const focusBorder = isFocused && !isReadOnly ? "border-l-2" : "border-l-2 border-transparent";
 
@@ -328,15 +419,15 @@ const ScriptEditor = () => {
       case 'character':
         return cn(base, editClass, focusBorder, isFocused && "border-l-film-violet",
           "uppercase font-bold mb-1 mt-6",
-          "pl-[3.7in] pr-[1in] w-full text-left");
+          "pl-[2.2in] w-full text-left");
       case 'dialogue':
         return cn(base, editClass, focusBorder, isFocused && "border-l-blue-500",
           "mb-4 relative group",
-          "pl-[2.5in] pr-[2in] w-full text-left");
+          "pl-[1in] pr-[1in] w-full text-left");
       case 'parenthetical':
         return cn(base, editClass, focusBorder, isFocused && "border-l-purple-400",
           "italic text-sm mb-1",
-          "pl-[3.1in] pr-[2.3in] w-full text-left");
+          "pl-[1.6in] pr-[1.4in] w-full text-left");
       case 'slugline':
         return cn(base, editClass, focusBorder, isFocused && "border-l-film-amber",
           "uppercase font-bold mb-4 mt-8");
@@ -428,6 +519,18 @@ const ScriptEditor = () => {
             <Sparkles size={16} />
             <span className="hidden sm:inline">AI Storyboard</span>
           </Button>
+
+          {!isReadOnly && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-8 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:from-blue-500/20 hover:to-cyan-500/20"
+              onClick={() => setIsSceneGenOpen(true)}
+            >
+              <Wand2 size={16} />
+              <span className="hidden sm:inline">Generate Scene</span>
+            </Button>
+          )}
 
           <Button
             variant={showRightPanel === 'ai' ? 'secondary' : 'ghost'}
@@ -525,7 +628,7 @@ const ScriptEditor = () => {
         <main className="flex-1 overflow-y-auto p-8 md:p-12 flex justify-center bg-muted/30">
           <div className={cn(
             "w-[8.5in] min-h-[11in] bg-white text-black shadow-xl relative",
-            "py-[1in] font-screenplay text-[12pt] leading-[1]",
+            "py-[1in] font-screenplay text-[12pt] leading-normal",
             isReadOnly ? "cursor-default" : "cursor-text"
           )}
           style={{ paddingLeft: '1.5in', paddingRight: '1in' }}
@@ -589,8 +692,38 @@ const ScriptEditor = () => {
                       <DialogueFeedback
                         characterName={getCharacterForDialogue(index)}
                         dialogue={block.content}
-                        consistencyScore={95}
+                        scriptBlocks={blocks}
+                        blockIndex={index}
+                        onApplySuggestion={(text) => {
+                          const el = blockRefs.current[block.id];
+                          if (el) {
+                            el.innerText = text;
+                            syncBlockFromDOM(block.id);
+                            setBlocks([...blocksRef.current]);
+                            markUnsaved();
+                          }
+                        }}
                       />
+                    </div>
+                  )}
+
+                  {/* AI Autocomplete ghost text */}
+                  {suggestionBlockId === block.id && (aiLoading || aiSuggestion) && (
+                    <div className="pl-2 mt-0.5 select-none pointer-events-none">
+                      {aiLoading && !aiSuggestion && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+                          <Loader2 size={12} className="animate-spin" />
+                          <span className="italic">Thinking...</span>
+                        </div>
+                      )}
+                      {aiSuggestion && (
+                        <div className="text-[12pt] font-screenplay text-muted-foreground/40 italic leading-normal">
+                          {aiSuggestion}
+                          <span className="ml-2 text-[9px] font-sans not-italic text-muted-foreground/50 bg-muted px-1.5 py-0.5 rounded">
+                            Tab to accept · Esc to dismiss
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -599,29 +732,93 @@ const ScriptEditor = () => {
           </div>
         </main>
 
-        {/* Overseer Panel */}
+        {/* AI Right Panel */}
         <AnimatePresence>
           {showRightPanel === 'ai' && (
             <motion.aside
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
+              animate={{ width: 360, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="border-l bg-background flex flex-col shrink-0 overflow-hidden"
             >
-              <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="font-semibold text-sm">Production Intelligence</h3>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowRightPanel(null)}>
-                  <X size={16} />
-                </Button>
+              <div className="p-3 border-b flex items-center justify-between">
+                <Tabs value={aiTab} onValueChange={setAiTab} className="w-full">
+                  <div className="flex items-center justify-between">
+                    <TabsList className="h-8">
+                      <TabsTrigger value="overseer" className="text-[10px] uppercase font-bold px-3 h-7">
+                        <BrainCircuit size={12} className="mr-1.5" />
+                        Overseer
+                      </TabsTrigger>
+                      <TabsTrigger value="chat" className="text-[10px] uppercase font-bold px-3 h-7">
+                        <MessageSquare size={12} className="mr-1.5" />
+                        Character
+                      </TabsTrigger>
+                    </TabsList>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowRightPanel(null)}>
+                      <X size={14} />
+                    </Button>
+                  </div>
+                </Tabs>
               </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                <ProductionOverseer />
+              <div className="flex-1 overflow-y-auto">
+                {aiTab === 'overseer' && (
+                  <div className="p-4">
+                    <ProductionOverseer blocks={blocks} />
+                  </div>
+                )}
+                {aiTab === 'chat' && (
+                  <div className="h-full">
+                    {(() => {
+                      const characters = [...new Set(blocks.filter(b => b.type === 'character').map(b => b.content))];
+                      if (characters.length === 0) {
+                        return (
+                          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                            <p className="text-sm text-muted-foreground">No characters in script yet. Add character blocks to chat with them.</p>
+                          </div>
+                        );
+                      }
+                      if (!activeCharChat) {
+                        return (
+                          <div className="p-4 space-y-2">
+                            <p className="text-xs font-bold uppercase text-muted-foreground mb-3">Select a character to chat with:</p>
+                            {characters.map(name => (
+                              <button
+                                key={name}
+                                className="w-full text-left p-3 rounded-lg border hover:bg-muted/50 transition-colors flex items-center gap-2"
+                                onClick={() => setActiveCharChat(name)}
+                              >
+                                <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-xs font-bold text-purple-700 dark:text-purple-400">
+                                  {name.substring(0, 2)}
+                                </div>
+                                <span className="text-sm font-semibold">{name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return (
+                        <CharacterChat
+                          characterName={activeCharChat}
+                          scriptBlocks={blocks}
+                          onBack={() => setActiveCharChat(null)}
+                        />
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </motion.aside>
           )}
         </AnimatePresence>
       </div>
+
+      <SceneGeneratorModal
+        isOpen={isSceneGenOpen}
+        onOpenChange={setIsSceneGenOpen}
+        existingCharacters={[...new Set(blocks.filter(b => b.type === 'character').map(b => b.content))]}
+        onInsert={insertGeneratedBlocks}
+      />
 
       <RenameScriptModal
         isOpen={isRenameModalOpen}
