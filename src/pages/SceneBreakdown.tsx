@@ -29,7 +29,7 @@ import { motion } from "framer-motion";
 
 interface ScriptBlock {
   id: string;
-  type: 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
+  type: 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical' | 'transition';
   content: string;
 }
 

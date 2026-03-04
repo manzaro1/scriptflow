@@ -48,6 +48,7 @@ const typeColors: Record<string, string> = {
   dialogue: 'text-blue-600 bg-blue-500/10',
   parenthetical: 'text-purple-400 bg-purple-400/10',
   action: 'text-muted-foreground bg-muted',
+  transition: 'text-amber-500 bg-amber-500/10',
 };
 
 const SceneGeneratorModal = ({ isOpen, onOpenChange, existingCharacters, onInsert }: SceneGeneratorModalProps) => {
@@ -195,9 +196,10 @@ const SceneGeneratorModal = ({ isOpen, onOpenChange, existingCharacters, onInser
                   const style = (() => {
                     switch (block.type) {
                       case 'slugline': return 'uppercase font-bold mt-6 mb-2';
-                      case 'character': return 'uppercase font-bold mt-4 mb-0.5 pl-[2.2in]';
-                      case 'dialogue': return 'mb-3 pl-[1in] pr-[1in]';
-                      case 'parenthetical': return 'italic text-sm mb-0.5 pl-[1.6in]';
+                      case 'character': return 'uppercase font-bold mt-4 mb-0 ml-[2.2in] mr-[1.4in]';
+                      case 'dialogue': return 'mb-3 ml-[1in] mr-[1.5in]';
+                      case 'parenthetical': return 'italic mb-0 ml-[1.6in] mr-[2in]';
+                      case 'transition': return 'uppercase font-bold mt-4 mb-3 text-right';
                       case 'action': return 'mb-3';
                       default: return 'mb-2';
                     }

@@ -48,7 +48,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { hasGeminiKey, callAIFunction } from "@/utils/ai";
 
-type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical';
+type ElementType = 'action' | 'character' | 'dialogue' | 'slugline' | 'parenthetical' | 'transition';
 
 interface ScriptBlock {
   id: string;
@@ -334,7 +334,7 @@ const ScriptEditor = () => {
       e.preventDefault();
       // Flush content from DOM first
       syncBlockFromDOM(block.id);
-      const types: ElementType[] = ['action', 'character', 'parenthetical', 'dialogue', 'slugline'];
+      const types: ElementType[] = ['action', 'character', 'parenthetical', 'dialogue', 'slugline', 'transition'];
       const currentIndex = types.indexOf(block.type);
       const nextType = types[(currentIndex + 1) % types.length];
 
@@ -390,14 +390,24 @@ const ScriptEditor = () => {
     let content = el.innerText;
     let type = block.type;
 
-    // Only auto-detect sluglines from INT./EXT. prefix — all other types stay as the user set them
-    const upperContent = content.toUpperCase();
+    // Auto-detect sluglines from INT./EXT. prefix and transitions from common patterns
+    const upperContent = content.toUpperCase().trim();
     if (upperContent.startsWith('INT.') || upperContent.startsWith('EXT.')) {
       type = 'slugline';
+    } else if (
+      upperContent === 'CUT TO:' ||
+      upperContent === 'FADE OUT.' ||
+      upperContent === 'FADE IN:' ||
+      upperContent === 'SMASH CUT TO:' ||
+      upperContent === 'MATCH CUT TO:' ||
+      upperContent === 'DISSOLVE TO:' ||
+      upperContent.endsWith('CUT TO:')
+    ) {
+      type = 'transition';
     }
 
-    // Auto-uppercase for sluglines and character names
-    if (type === 'slugline' || type === 'character') {
+    // Auto-uppercase for sluglines, character names, and transitions
+    if (type === 'slugline' || type === 'character' || type === 'transition') {
       content = content.toUpperCase();
       el.innerText = content;
     }
@@ -411,27 +421,37 @@ const ScriptEditor = () => {
   };
 
   const getBlockStyles = (type: ElementType, isFocused: boolean) => {
-    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded px-2 whitespace-pre-wrap font-screenplay text-[12pt] leading-normal relative";
+    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded whitespace-pre-wrap font-screenplay text-[12pt] leading-normal relative";
     const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     const focusBorder = isFocused && !isReadOnly ? "border-l-2" : "border-l-2 border-transparent";
 
+    // Industry-standard screenplay format (relative to the 6in text area inside 1.5in + 1in margins):
+    // Character name: centered, ~3.7in from page left = ~2.2in from text left, narrow block
+    // Dialogue: ~1in from text left, ~3.5in wide
+    // Parenthetical: ~1.5in from text left, ~2.5in wide
+    // Slugline: full width, left-aligned, ALL CAPS
+    // Action: full width, left-aligned
+    // Transition: right-aligned, ALL CAPS
     switch (type) {
       case 'character':
         return cn(base, editClass, focusBorder, isFocused && "border-l-film-violet",
-          "uppercase font-bold mb-1 mt-6",
-          "pl-[2.2in] w-full text-left");
+          "uppercase font-bold mb-0 mt-6",
+          "ml-[2.2in] mr-[1.4in] text-left");
       case 'dialogue':
         return cn(base, editClass, focusBorder, isFocused && "border-l-blue-500",
           "mb-4 relative group",
-          "pl-[1in] pr-[1in] w-full text-left");
+          "ml-[1in] mr-[1.5in] text-left");
       case 'parenthetical':
         return cn(base, editClass, focusBorder, isFocused && "border-l-purple-400",
-          "italic text-sm mb-1",
-          "pl-[1.6in] pr-[1.4in] w-full text-left");
+          "italic mb-0",
+          "ml-[1.6in] mr-[2in] text-left");
       case 'slugline':
         return cn(base, editClass, focusBorder, isFocused && "border-l-film-amber",
-          "uppercase font-bold mb-4 mt-8");
-      default:
+          "uppercase font-bold mb-4 mt-8 text-left");
+      case 'transition':
+        return cn(base, editClass, focusBorder, isFocused && "border-l-amber-500",
+          "uppercase font-bold mb-4 mt-4 text-right");
+      default: // action
         return cn(base, editClass, focusBorder, isFocused && "border-l-muted-foreground/30",
           "mb-4 text-left");
     }
@@ -444,6 +464,7 @@ const ScriptEditor = () => {
       dialogue: { label: 'DIAL', color: 'text-blue-600 bg-blue-500/10' },
       parenthetical: { label: 'PAREN', color: 'text-purple-400 bg-purple-400/10' },
       action: { label: 'ACTION', color: 'text-muted-foreground bg-muted' },
+      transition: { label: 'TRANS', color: 'text-amber-500 bg-amber-500/10' },
     };
     return labels[type];
   };

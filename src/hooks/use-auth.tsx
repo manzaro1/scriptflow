@@ -36,9 +36,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkSession();
 
     // Listen for auth state changes to keep UI in sync with server session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+      } else {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+      }
       setLoading(false);
     });
 
@@ -46,7 +51,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    // Always clear local state even if the server call fails,
+    // so the user is never stuck in a "logged in" ghost state
+    setSession(null);
+    setUser(null);
+    if (error) {
+      console.error("Sign out error:", error);
+    }
   };
 
   // Truth is derived directly from the presence of a valid session

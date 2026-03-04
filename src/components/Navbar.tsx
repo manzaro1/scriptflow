@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
 import { showSuccess, showError } from "@/utils/toast";
 
 interface NavbarProps {
@@ -34,10 +35,12 @@ const Navbar = ({ onSearch }: NavbarProps) => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, user, signOut } = useAuth();
+  const queryClient = useQueryClient();
 
   const handleLogout = async () => {
     try {
       await signOut();
+      queryClient.clear();
       showSuccess("Logged out successfully");
       navigate('/');
     } catch (error: any) {
