@@ -27,7 +27,7 @@ import { showError } from '@/utils/toast';
 import { motion, AnimatePresence } from "framer-motion";
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const [scripts, setScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ const Index = () => {
   const [totalCollaborators, setTotalCollaborators] = useState(0);
 
   const fetchScripts = useCallback(async (showSkeleton = true) => {
-    if (!user) return;
+    if (!user || !session) return;
 
     if (showSkeleton) setLoading(true);
 
@@ -61,11 +61,11 @@ const Index = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, session]);
 
   useEffect(() => {
-    if (user) fetchScripts();
-  }, [user, fetchScripts]);
+    if (user && session) fetchScripts();
+  }, [user, session, fetchScripts]);
 
   const filteredScripts = useMemo(() => {
     return scripts.filter(script => {
