@@ -663,6 +663,8 @@ const ScriptEditor = () => {
                 className={cn("text-2xl font-bold rounded px-2 outline-none", !isReadOnly && "focus:bg-violet-50")}
                 contentEditable={!isReadOnly}
                 suppressContentEditableWarning
+                dir="ltr"
+                style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
                 onBlur={(e) => {
                   if (!isReadOnly) {
                     setScriptTitle(sanitizeInput(e.currentTarget.innerText));
@@ -677,6 +679,8 @@ const ScriptEditor = () => {
                 className={cn("mt-1 rounded px-2 min-w-[100px] inline-block outline-none", !isReadOnly && "focus:bg-violet-50")}
                 contentEditable={!isReadOnly}
                 suppressContentEditableWarning
+                dir="ltr"
+                style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
                 onBlur={(e) => {
                   if (!isReadOnly) {
                     setScriptAuthor(sanitizeInput(e.currentTarget.innerText));
@@ -702,7 +706,9 @@ const ScriptEditor = () => {
                     ref={el => { blockRefs.current[block.id] = el; }}
                     contentEditable={!isReadOnly}
                     suppressContentEditableWarning
+                    dir="ltr"
                     className={getBlockStyles(block.type, focusedBlockId === block.id)}
+                    style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: block.type === 'transition' ? 'right' : 'left' }}
                     onKeyDown={(e) => handleKeyDown(e, index)}
                     onBlur={() => handleBlur(index)}
                     onFocus={() => setFocusedBlockId(block.id)}
