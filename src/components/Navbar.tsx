@@ -2,12 +2,13 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, Search, Bell, User, Plus, Menu } from 'lucide-react';
+import { Film, Search, User, Plus, Menu } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import NewScriptModal from "./NewScriptModal";
 import { ModeToggle } from "./ModeToggle";
 import SidebarContent from "./SidebarContent";
+import NotificationBell from "./NotificationBell";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Sheet,
@@ -104,10 +105,7 @@ const Navbar = ({ onSearch }: NavbarProps) => {
 
           {isAuthenticated ? (
             <>
-              <Button variant="ghost" size="icon" className="hidden sm:flex relative">
-                <Bell size={20} />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
-              </Button>
+              <NotificationBell />
 
               <div className="tour-new-script hidden xs:block">
                 <NewScriptModal>

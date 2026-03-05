@@ -1,18 +1,14 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Save,
-  Download,
   X,
   Sparkles,
-  FileDown,
   BrainCircuit,
-  UserCircle2,
   Share2,
-  Info,
   Edit2,
   Files,
   Loader2,
@@ -22,18 +18,11 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { showSuccess, showLoading, dismissToast, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeInput } from "@/utils/security";
-import CharacterProfileModal from "@/components/CharacterProfileModal";
 import CharacterChat from "@/components/CharacterChat";
 import ProductionOverseer from "@/components/ProductionOverseer";
 import ShareScriptModal from "@/components/ShareScriptModal";
@@ -42,7 +31,6 @@ import RenameScriptModal from "@/components/RenameScriptModal";
 import DialogueFeedback from "@/components/DialogueFeedback";
 import CollaboratorStack from "@/components/CollaboratorStack";
 import SceneGeneratorModal from "@/components/SceneGeneratorModal";
-import NoApiKeyPrompt from "@/components/NoApiKeyPrompt";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
@@ -68,7 +56,7 @@ const ScriptEditor = () => {
   const [aiTab, setAiTab] = useState<string>("overseer");
   const [activeCharChat, setActiveCharChat] = useState<string | null>(null);
   const [isStoryboardOpen, setIsStoryboardOpen] = useState(false);
-  const [isRenameModalOpen, setIsRenameModal] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [isSceneGenOpen, setIsSceneGenOpen] = useState(false);
 
   // AI Autocomplete state
@@ -368,6 +356,7 @@ const ScriptEditor = () => {
       if (content === '' && blocksRef.current.length > 1) {
         e.preventDefault();
         const focusTargetId = blocksRef.current[index - 1]?.id || blocksRef.current[index + 1]?.id;
+        delete blockRefs.current[block.id];
         const newBlocks = blocksRef.current.filter((_, i) => i !== index);
         blocksRef.current = newBlocks;
         setBlocks(newBlocks);
@@ -478,7 +467,8 @@ const ScriptEditor = () => {
     return 'UNKNOWN';
   };
 
-  const sceneSlugs = blocks.filter(b => b.type === 'slugline');
+  const sceneSlugs = useMemo(() => blocks.filter(b => b.type === 'slugline'), [blocks]);
+  const uniqueCharacters = useMemo(() => [...new Set(blocks.filter(b => b.type === 'character').map(b => b.content))], [blocks]);
 
   if (loading) {
     return (
@@ -504,7 +494,7 @@ const ScriptEditor = () => {
 
           <div className="h-5 w-px bg-border" />
 
-          <div className="flex flex-col group cursor-pointer" onClick={() => !isReadOnly && setIsRenameModal(true)}>
+          <div className="flex flex-col group cursor-pointer" onClick={() => !isReadOnly && setIsRenameModalOpen(true)}>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold">{scriptTitle || "Untitled"}</span>
               {!isReadOnly && <Edit2 size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
@@ -664,7 +654,7 @@ const ScriptEditor = () => {
                 contentEditable={!isReadOnly}
                 suppressContentEditableWarning
                 dir="ltr"
-                style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
+                style={{ direction: 'ltr', unicodeBidi: 'embed' }}
                 onBlur={(e) => {
                   if (!isReadOnly) {
                     setScriptTitle(sanitizeInput(e.currentTarget.innerText));
@@ -680,7 +670,7 @@ const ScriptEditor = () => {
                 contentEditable={!isReadOnly}
                 suppressContentEditableWarning
                 dir="ltr"
-                style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
+                style={{ direction: 'ltr', unicodeBidi: 'embed' }}
                 onBlur={(e) => {
                   if (!isReadOnly) {
                     setScriptAuthor(sanitizeInput(e.currentTarget.innerText));
@@ -703,16 +693,22 @@ const ScriptEditor = () => {
                     </div>
                   )}
                   <div
-                    ref={el => { blockRefs.current[block.id] = el; }}
+                    ref={el => {
+                      blockRefs.current[block.id] = el;
+                      // Set initial content only once when the element is first mounted
+                      if (el && el.dataset.initialized !== 'true') {
+                        el.innerText = block.content;
+                        el.dataset.initialized = 'true';
+                      }
+                    }}
                     contentEditable={!isReadOnly}
                     suppressContentEditableWarning
                     dir="ltr"
                     className={getBlockStyles(block.type, focusedBlockId === block.id)}
-                    style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: block.type === 'transition' ? 'right' : 'left' }}
+                    style={{ direction: 'ltr', unicodeBidi: 'embed', textAlign: block.type === 'transition' ? 'right' : 'left' }}
                     onKeyDown={(e) => handleKeyDown(e, index)}
                     onBlur={() => handleBlur(index)}
                     onFocus={() => setFocusedBlockId(block.id)}
-                    dangerouslySetInnerHTML={{ __html: block.content }}
                   />
                   {block.type === 'dialogue' && !isReadOnly && (
                     <div className="absolute -left-8 top-1/2 -translate-y-1/2">
@@ -797,8 +793,7 @@ const ScriptEditor = () => {
                 {aiTab === 'chat' && (
                   <div className="h-full">
                     {(() => {
-                      const characters = [...new Set(blocks.filter(b => b.type === 'character').map(b => b.content))];
-                      if (characters.length === 0) {
+                      if (uniqueCharacters.length === 0) {
                         return (
                           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
                             <p className="text-sm text-muted-foreground">No characters in script yet. Add character blocks to chat with them.</p>
@@ -809,7 +804,7 @@ const ScriptEditor = () => {
                         return (
                           <div className="p-4 space-y-2">
                             <p className="text-xs font-bold uppercase text-muted-foreground mb-3">Select a character to chat with:</p>
-                            {characters.map(name => (
+                            {uniqueCharacters.map(name => (
                               <button
                                 key={name}
                                 className="w-full text-left p-3 rounded-lg border hover:bg-muted/50 transition-colors flex items-center gap-2"
@@ -843,13 +838,13 @@ const ScriptEditor = () => {
       <SceneGeneratorModal
         isOpen={isSceneGenOpen}
         onOpenChange={setIsSceneGenOpen}
-        existingCharacters={[...new Set(blocks.filter(b => b.type === 'character').map(b => b.content))]}
+        existingCharacters={uniqueCharacters}
         onInsert={insertGeneratedBlocks}
       />
 
       <RenameScriptModal
         isOpen={isRenameModalOpen}
-        onOpenChange={setIsRenameModal}
+        onOpenChange={setIsRenameModalOpen}
         currentTitle={scriptTitle}
         onRename={(title) => {
           setScriptTitle(sanitizeInput(title));
