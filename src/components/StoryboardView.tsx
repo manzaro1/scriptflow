@@ -17,7 +17,8 @@ import {
   Maximize2,
   Minimize2,
   Info,
-  Layers
+  Layers,
+  Focus
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ export interface StoryboardRow {
   sceneTitle: string;
   shotNumber: string;
   shotType: string;
+  shotCategory?: string;
   cameraAngle: string;
   movement: string;
   lens: string;
@@ -140,9 +142,16 @@ const StoryboardView = ({ title, data, aspectRatio, onRegenerateShot }: Storyboa
                     
                     <TableCell className="border border-white/10 p-6 align-top">
                       <div className="flex flex-col gap-3">
-                        <Badge variant="outline" className="text-[10px] bg-orange-600/10 border-orange-500/30 text-orange-500 w-full justify-center py-1.5 font-black">
-                          {row.shotType}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="outline" className="text-[10px] bg-orange-600/10 border-orange-500/30 text-orange-500 w-full justify-center py-1.5 font-black">
+                            {row.shotType}
+                          </Badge>
+                          {row.shotCategory && (
+                            <Badge variant="outline" className="text-[8px] bg-blue-600/10 border-blue-500/30 text-blue-400 w-full justify-center py-0.5 font-bold uppercase tracking-widest">
+                              {row.shotCategory}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="space-y-2 mt-2">
                           <div className="flex items-center gap-2 text-[10px] text-white/50 uppercase font-bold tracking-tight">
                             <Camera size={12} className="text-orange-500" />

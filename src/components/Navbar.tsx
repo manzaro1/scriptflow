@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, Search, User, Plus, Menu } from 'lucide-react';
+import { Film, Search, User, Plus, Menu, HelpCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import NewScriptModal from "./NewScriptModal";
@@ -47,6 +47,12 @@ const Navbar = ({ onSearch }: NavbarProps) => {
     } catch (error: any) {
       showError(error.message || "Failed to log out");
     }
+  };
+
+  const restartTour = () => {
+    localStorage.removeItem('hasSeenOnboarding');
+    showSuccess("Onboarding tour restarted. Refreshing...");
+    setTimeout(() => window.location.reload(), 1000);
   };
 
   return (
@@ -105,6 +111,10 @@ const Navbar = ({ onSearch }: NavbarProps) => {
 
           {isAuthenticated ? (
             <>
+              <Button variant="ghost" size="icon" className="h-9 w-9 hidden sm:flex" onClick={restartTour} title="Help / Restart Tour">
+                <HelpCircle size={20} />
+              </Button>
+
               <NotificationBell />
 
               <div className="tour-new-script hidden xs:block">
