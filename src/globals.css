@@ -145,13 +145,22 @@
   /* Screenplay page styling */
   .screenplay-page {
     font-family: "Courier Prime", "Courier New", monospace;
-    font-size: 12pt;
+ 12pt;
     line-height: 1;
-  }
+     font-size: }
+}
 
-  /* Force LTR direction for all screenplay editable elements */
-  .screenplay-page [contenteditable] {
-    direction: ltr !important;
-    unicode-bidi: normal !important;
-  }
+/* Force LTR direction for ALL contenteditable elements globally */
+[contenteditable] {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: plaintext !important;
+}
+
+/* Additional fix for screenplay contenteditable elements */
+.screenplay-page [contenteditable],
+.screenplay-page [contenteditable]:focus {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: plaintext !important;
 }

@@ -46,6 +46,7 @@ import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeInput } from "@/utils/security";
 import { saveGeminiKey, removeGeminiKey, testGeminiKey } from "@/utils/ai";
+import { AI_PROVIDERS, AIProvider, loadAIConfig, saveAIConfig, testAPIKey } from "@/utils/ai-providers";
 import { useSearchParams } from "react-router-dom";
 
 const Profile = () => {
@@ -58,6 +59,9 @@ const Profile = () => {
 
   // AI key state
   const [aiKeyInput, setAiKeyInput] = useState('');
+  const [aiProvider, setAiProvider] = useState<AIProvider>('gemini');
+  const [aiModel, setAiModel] = useState('');
+  const [customBaseUrl, setCustomBaseUrl] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const [testingKey, setTestingKey] = useState(false);
@@ -69,15 +73,14 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCurrentUser(user);
-        const { data } = await supabase
-          .from('profiles')
-          .select('gemini_api_key')
-          .eq('id', user.id)
-          .single();
-        
-        if (data?.gemini_api_key) {
+        // Load AI config from localStorage
+        const aiConfig = loadAIConfig();
+        setAiProvider(aiConfig.provider);
+        setAiKeyInput(aiConfig.apiKey);
+        setAiModel(aiConfig.model);
+        setCustomBaseUrl(aiConfig.baseUrl || '');
+        if (aiConfig.apiKey || aiConfig.baseUrl) {
           setHasKey(true);
-          setAiKeyInput(data.gemini_api_key);
         }
       }
       setLoadingKey(false);
@@ -86,19 +89,30 @@ const Profile = () => {
   }, []);
 
   const handleSaveKey = async () => {
-    const trimmed = aiKeyInput.trim();
-    if (!trimmed) {
+    const providerInfo = AI_PROVIDERS.find(p => p.id === aiProvider);
+    const model = aiModel || providerInfo?.defaultModel || '';
+    
+    if (aiProvider === 'custom') {
+      if (!customBaseUrl.trim()) {
+        showError("Please enter a base URL for custom API");
+        return;
+      }
+    } else if (!aiKeyInput.trim()) {
       showError("Please enter an API key");
       return;
     }
-    const success = await saveGeminiKey(trimmed);
-    if (success) {
-      setHasKey(true);
-      setTestResult(null);
-      showSuccess("API key saved securely to your profile");
-    } else {
-      showError("Failed to save API key");
-    }
+    
+    // Save to localStorage
+    saveAIConfig({
+      provider: aiProvider,
+      apiKey: aiKeyInput.trim(),
+      model: model,
+      baseUrl: aiProvider === 'custom' ? customBaseUrl.trim() : undefined,
+    });
+    
+    setHasKey(true);
+    setTestResult(null);
+    showSuccess(`API key saved for ${providerInfo?.name}`);
   };
 
   const handleRemoveKey = async () => {

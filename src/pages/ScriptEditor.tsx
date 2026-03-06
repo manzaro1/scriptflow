@@ -707,9 +707,11 @@ const ScriptEditor = () => {
                     }}
                     contentEditable={!isReadOnly}
                     suppressContentEditableWarning
-                    dir="ltr"
                     className={getBlockStyles(block.type, focusedBlockId === block.id)}
-                    style={{ direction: 'ltr !important', unicodeBidi: 'normal', textAlign: block.type === 'transition' ? 'right' : 'left' }}
+                    style={{ 
+                      '--tw-direction': 'ltr',
+                      textAlign: block.type === 'transition' ? 'right' : 'left'
+                    } as React.CSSProperties}
                     onKeyDown={(e) => handleKeyDown(e, index)}
                     onInput={() => { if (!isReadOnly) markUnsaved(); }}
                     onBlur={() => handleBlur(index)}
