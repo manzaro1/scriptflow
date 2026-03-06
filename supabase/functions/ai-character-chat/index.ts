@@ -20,58 +20,51 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const supabase = createClient(
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const { geminiApiKey, characterName, userMessage, characterDialogue, conversationHistory } = await req.json();
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('gemini_api_key')
+      .eq('id', user.id)
+      .single();
 
-    if (!geminiApiKey) {
-      return new Response(
-        JSON.stringify({ error: "Missing API key" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (profileError || !profile?.gemini_api_key) {
+      return new Response(JSON.stringify({ error: "NO_API_KEY" }), { status: 400, headers: corsHeaders });
     }
 
-    // Build the character's voice profile from their dialogue in the script
-    const dialogueLines = characterDialogue?.map((d: any) =>
-      `[Scene: ${d.scene}] "${d.line}"`
-    ).join('\n') || 'No dialogue written yet.';
+    const { characterName, userMessage, characterDialogue, conversationHistory } = await req.json();
+    const geminiApiKey = profile.gemini_api_key;
 
-    // Build conversation so far
-    const historyText = conversationHistory?.map((m: any) =>
-      m.role === 'user' ? `Writer: ${m.content}` : `${characterName}: ${m.content}`
-    ).join('\n\n') || '';
+    const dialogueLines = characterDialogue?.map((d: any) => `[Scene: ${d.scene}] "${d.line}"`).join('\n') || 'No dialogue written yet.';
+    const historyText = conversationHistory?.map((m: any) => m.role === 'user' ? `Writer: ${m.content}` : `${characterName}: ${m.content}`).join('\n\n') || '';
 
     const prompt = `You are ${characterName}, a character in a screenplay. Stay in character at all times.
 
 YOUR DIALOGUE FROM THE SCRIPT:
 ${dialogueLines}
 
-Based on these lines, you have a specific voice, personality, and way of speaking. Maintain that voice consistently.
-
 ${historyText ? `CONVERSATION SO FAR:\n${historyText}\n\n` : ''}WRITER'S NEW MESSAGE: ${userMessage}
 
-Respond as ${characterName} would. Stay in character. If the writer asks you to try a new line of dialogue, provide one in your voice. If they ask about your motivations, answer from the character's perspective. Keep responses concise (2-4 sentences). Do NOT break character or mention being an AI.`;
+Respond as ${characterName} would. Stay in character.`;
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
@@ -80,33 +73,19 @@ Respond as ${characterName} would. Stay in character. If the writer asks you to 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.85,
-            maxOutputTokens: 300,
-          }
+          generationConfig: { temperature: 0.85, maxOutputTokens: 300 }
         }),
       }
     );
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error(`Gemini API error: ${res.status} ${errBody}`);
-      throw new Error("AI service error");
-    }
+    if (!res.ok) throw new Error("AI service error");
 
     const data = await res.json();
     const response = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
-    return new Response(
-      JSON.stringify({ response }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ response }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error("[ai-character-chat]", error.message);
-    return new Response(
-      JSON.stringify({ error: "Failed to generate response" }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
   }
 })

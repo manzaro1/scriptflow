@@ -45,7 +45,7 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeInput } from "@/utils/security";
-import { getGeminiKey, setGeminiKey, removeGeminiKey, testGeminiKey } from "@/utils/ai";
+import { saveGeminiKey, removeGeminiKey, testGeminiKey } from "@/utils/ai";
 import { useSearchParams } from "react-router-dom";
 
 const Profile = () => {
@@ -62,33 +62,55 @@ const Profile = () => {
   const [hasKey, setHasKey] = useState(false);
   const [testingKey, setTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+  const [loadingKey, setLoadingKey] = useState(true);
 
   useEffect(() => {
-    const existing = getGeminiKey();
-    if (existing) {
-      setHasKey(true);
-      setAiKeyInput(existing);
-    }
+    const fetchKeyStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUser(user);
+        const { data } = await supabase
+          .from('profiles')
+          .select('gemini_api_key')
+          .eq('id', user.id)
+          .single();
+        
+        if (data?.gemini_api_key) {
+          setHasKey(true);
+          setAiKeyInput(data.gemini_api_key);
+        }
+      }
+      setLoadingKey(false);
+    };
+    fetchKeyStatus();
   }, []);
 
-  const handleSaveKey = () => {
+  const handleSaveKey = async () => {
     const trimmed = aiKeyInput.trim();
     if (!trimmed) {
       showError("Please enter an API key");
       return;
     }
-    setGeminiKey(trimmed);
-    setHasKey(true);
-    setTestResult(null);
-    showSuccess("API key saved");
+    const success = await saveGeminiKey(trimmed);
+    if (success) {
+      setHasKey(true);
+      setTestResult(null);
+      showSuccess("API key saved securely to your profile");
+    } else {
+      showError("Failed to save API key");
+    }
   };
 
-  const handleRemoveKey = () => {
-    removeGeminiKey();
-    setAiKeyInput('');
-    setHasKey(false);
-    setTestResult(null);
-    showSuccess("API key removed");
+  const handleRemoveKey = async () => {
+    const success = await removeGeminiKey();
+    if (success) {
+      setAiKeyInput('');
+      setHasKey(false);
+      setTestResult(null);
+      showSuccess("API key removed from your profile");
+    } else {
+      showError("Failed to remove API key");
+    }
   };
 
   const handleTestKey = async () => {
@@ -116,18 +138,10 @@ const Profile = () => {
     { id: 4, name: 'Mike Intern', email: 'mike@intern.com', role: 'Viewer', status: 'Pending', avatar: 'MI' },
   ]);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setCurrentUser(data.user);
-    });
-  }, []);
-
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
 
-    // This is still a mock for global team members, 
-    // but in a full implementation this would write to a 'team_invitations' table
     const newMember = {
       id: Date.now(),
       name: inviteEmail.split('@')[0],
@@ -438,6 +452,7 @@ const Profile = () => {
                             placeholder="AIzaSy..."
                             value={aiKeyInput}
                             onChange={(e) => { setAiKeyInput(e.target.value); setTestResult(null); }}
+                            disabled={loadingKey}
                           />
                           <button
                             type="button"
@@ -447,7 +462,7 @@ const Profile = () => {
                             {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
-                        <Button variant="outline" onClick={handleTestKey} disabled={testingKey || !aiKeyInput.trim()}>
+                        <Button variant="outline" onClick={handleTestKey} disabled={testingKey || !aiKeyInput.trim() || loadingKey}>
                           {testingKey ? <Loader2 size={16} className="animate-spin" /> : "Test"}
                         </Button>
                       </div>
@@ -462,7 +477,7 @@ const Profile = () => {
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        Your key is stored locally in this browser and never sent to our servers. Get a free key from{' '}
+                        Your key is stored securely in your profile and never exposed to other users. Get a free key from{' '}
                         <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
                           Google AI Studio
                         </a>.
@@ -486,7 +501,7 @@ const Profile = () => {
                         Remove Key
                       </Button>
                     )}
-                    <Button onClick={handleSaveKey} disabled={!aiKeyInput.trim()} className="ml-auto">
+                    <Button onClick={handleSaveKey} disabled={!aiKeyInput.trim() || loadingKey} className="ml-auto">
                       {hasKey ? 'Update Key' : 'Save Key'}
                     </Button>
                   </CardFooter>

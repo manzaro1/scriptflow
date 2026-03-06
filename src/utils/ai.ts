@@ -1,22 +1,46 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const STORAGE_KEY = "gemini_api_key";
+/** 
+ * Saves the Gemini API key to the user's profile in Supabase.
+ * This is more secure than localStorage as it's tied to the user's session.
+ */
+export const saveGeminiKey = async (key: string): Promise<boolean> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
 
-export const getGeminiKey = (): string | null => {
-  return localStorage.getItem(STORAGE_KEY);
+  const { error } = await supabase
+    .from('profiles')
+    .update({ gemini_api_key: key })
+    .eq('id', user.id);
+
+  return !error;
 };
 
-export const setGeminiKey = (key: string) => {
-  localStorage.setItem(STORAGE_KEY, key);
+/** Removes the Gemini API key from the user's profile */
+export const removeGeminiKey = async (): Promise<boolean> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ gemini_api_key: null })
+    .eq('id', user.id);
+
+  return !error;
 };
 
-export const removeGeminiKey = () => {
-  localStorage.removeItem(STORAGE_KEY);
-};
+/** Checks if the user has an API key configured in their profile */
+export const hasGeminiKey = async (): Promise<boolean> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
 
-export const hasGeminiKey = (): boolean => {
-  const key = getGeminiKey();
-  return !!key && key.trim().length > 0;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('gemini_api_key')
+    .eq('id', user.id)
+    .single();
+
+  return !!data?.gemini_api_key && !error;
 };
 
 /** Test the Gemini key by making a lightweight API call */
@@ -38,23 +62,23 @@ export const testGeminiKey = async (key: string): Promise<boolean> => {
   }
 };
 
-/** Invoke a Supabase edge function with the Gemini key auto-injected */
+/** Invoke a Supabase edge function. The function now fetches the key server-side. */
 export const callAIFunction = async <T = any>(
   functionName: string,
   body: Record<string, any>
 ): Promise<{ data: T | null; error: string | null }> => {
-  const geminiApiKey = getGeminiKey();
-  if (!geminiApiKey) {
-    return { data: null, error: "NO_API_KEY" };
-  }
-
   try {
     const { data, error } = await supabase.functions.invoke(functionName, {
-      body: { ...body, geminiApiKey },
+      body,
     });
 
     if (error) {
       return { data: null, error: error.message || "Edge function error" };
+    }
+
+    // Handle the specific "NO_API_KEY" error returned by the function
+    if (data?.error === "NO_API_KEY") {
+      return { data: null, error: "NO_API_KEY" };
     }
 
     return { data: data as T, error: null };

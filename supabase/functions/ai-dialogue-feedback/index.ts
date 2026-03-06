@@ -20,69 +20,41 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const supabase = createClient(
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const { geminiApiKey, dialogue, characterName, surroundingBlocks } = await req.json();
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('gemini_api_key')
+      .eq('id', user.id)
+      .single();
 
-    if (!geminiApiKey) {
-      return new Response(
-        JSON.stringify({ error: "Missing API key" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (profileError || !profile?.gemini_api_key) {
+      return new Response(JSON.stringify({ error: "NO_API_KEY" }), { status: 400, headers: corsHeaders });
     }
 
-    const contextText = surroundingBlocks?.map((b: any) => {
-      if (b.type === 'slugline') return `[SCENE: ${b.content}]`;
-      if (b.type === 'character') return `\n${b.content}:`;
-      if (b.type === 'dialogue') return `  "${b.content}"`;
-      if (b.type === 'parenthetical') return `  (${b.content})`;
-      return b.content;
-    }).join('\n') || '';
+    const { dialogue, characterName, surroundingBlocks } = await req.json();
+    const geminiApiKey = profile.gemini_api_key;
 
-    const prompt = `You are an expert screenplay dialogue coach. Analyze the following dialogue line and provide feedback.
-
-CHARACTER: ${characterName}
-DIALOGUE LINE: "${dialogue}"
-
-SCRIPT CONTEXT:
-${contextText}
-
-Analyze the dialogue and return a JSON object with:
-1. "score": a consistency/quality score from 0-100 (consider: does it fit the character? is it natural? does it advance the scene?)
-2. "feedback": a brief 1-2 sentence analysis of the line (what works, what doesn't)
-3. "suggestions": an array of exactly 3 alternative dialogue lines that could work better or differently, each with a brief note about the approach
-
-Return ONLY valid JSON in this exact format:
-{
-  "score": 78,
-  "feedback": "The line feels slightly generic for this character. Consider...",
-  "suggestions": [
-    {"text": "Alternative dialogue here", "note": "More aggressive approach"},
-    {"text": "Another option", "note": "Softer, more vulnerable"},
-    {"text": "Third option", "note": "Subtext-heavy, indirect"}
-  ]
-}`;
+    const prompt = `Analyze this dialogue for ${characterName}: "${dialogue}". Return JSON with score, feedback, and 3 suggestions.`;
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
@@ -91,41 +63,22 @@ Return ONLY valid JSON in this exact format:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 800,
-          }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 800 }
         }),
       }
     );
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error(`Gemini API error: ${res.status} ${errBody}`);
-      throw new Error("AI service error");
-    }
+    if (!res.ok) throw new Error("AI service error");
 
     const data = await res.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
-
     let jsonStr = rawText;
     const jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
-    }
+    if (jsonMatch) jsonStr = jsonMatch[1].trim();
 
-    const result = JSON.parse(jsonStr);
-
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(jsonStr, { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error("[ai-dialogue-feedback]", error.message);
-    return new Response(
-      JSON.stringify({ error: "Failed to analyze dialogue" }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
   }
 })
