@@ -555,7 +555,7 @@ const ScriptEditor = () => {
 
           <div className="h-5 w-px bg-border hidden sm:block" />
 
-          <ShareScriptModal scriptId={scriptId || ''}>
+          <ShareScriptModal scriptId={scriptId || ''} scriptTitle={scriptTitle} inviterName={authUser?.user_metadata?.first_name || authUser?.email}>
             <Button variant="outline" size="sm" className="gap-2 h-8">
               <Share2 size={16} />
               <span className="hidden sm:inline">Share</span>

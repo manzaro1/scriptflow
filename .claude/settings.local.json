@@ -5,7 +5,8 @@
       "Bash(npx tsc:*)",
       "Bash(ls:*)",
       "Bash(node:*)",
-      "Bash(node_modules/typescript/bin/tsc:*)"
+      "Bash(node_modules/typescript/bin/tsc:*)",
+      "Bash(do echo:*)"
     ]
   }
 }

@@ -20,10 +20,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface ShareScriptModalProps {
   scriptId: string;
+  scriptTitle?: string;
+  inviterName?: string;
   children?: React.ReactNode;
 }
 
-const ShareScriptModal = ({ scriptId, children }: ShareScriptModalProps) => {
+const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: ShareScriptModalProps) => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'viewer' | 'editor' | 'admin'>('viewer');
   const [copied, setCopied] = useState(false);
@@ -59,6 +61,20 @@ const ShareScriptModal = ({ scriptId, children }: ShareScriptModalProps) => {
         });
 
       if (error) throw error;
+
+      // Send invitation email via Resend edge function
+      const scriptUrl = `${window.location.origin}/editor?id=${scriptId}`;
+      supabase.functions.invoke('send-invite-email', {
+        body: {
+          to: email.toLowerCase(),
+          inviterName: inviterName || 'A ScriptFlow user',
+          scriptTitle: scriptTitle || 'Untitled Script',
+          role,
+          scriptUrl,
+        },
+      }).catch(() => {
+        // Email delivery is best-effort; the DB invite is the source of truth
+      });
 
       showSuccess(`Invitation sent to ${email}`);
       setEmail('');
