@@ -643,7 +643,7 @@ const ScriptEditor = () => {
         <main className="flex-1 overflow-y-auto p-8 md:p-12 flex justify-center bg-muted/30">
           <div className={cn(
             "w-[8.5in] min-h-[11in] bg-white text-black shadow-xl relative",
-            "py-[1in] font-screenplay text-[12pt] leading-normal",
+            "py-[1in] font-screenplay text-[12pt] leading-normal screenplay-page",
             isReadOnly ? "cursor-default" : "cursor-text"
           )}
           style={{ paddingLeft: '1.5in', paddingRight: '1in' }}
@@ -709,7 +709,7 @@ const ScriptEditor = () => {
                     suppressContentEditableWarning
                     dir="ltr"
                     className={getBlockStyles(block.type, focusedBlockId === block.id)}
-                    style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: block.type === 'transition' ? 'right' : 'left' }}
+                    style={{ direction: 'ltr !important', unicodeBidi: 'normal', textAlign: block.type === 'transition' ? 'right' : 'left' }}
                     onKeyDown={(e) => handleKeyDown(e, index)}
                     onInput={() => { if (!isReadOnly) markUnsaved(); }}
                     onBlur={() => handleBlur(index)}

@@ -50,6 +50,7 @@
     --film-teal: 172 66% 50%;
   }
 
+
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
@@ -73,7 +74,7 @@
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
@@ -101,11 +102,13 @@
     @apply border-border;
   }
 
+
   html {
     font-family: "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
 
   body {
     @apply bg-background text-foreground;
@@ -120,6 +123,7 @@
   .stagger-4 { animation-delay: 0.4s; }
   .stagger-5 { animation-delay: 0.5s; }
 
+
   /* Shimmer background for CTAs */
   .bg-shimmer {
     background: linear-gradient(
@@ -131,15 +135,23 @@
     background-size: 200% 100%;
   }
 
+
   /* Glass morphism utility */
   .glass {
     @apply bg-background/80 backdrop-blur-xl border border-border/50;
   }
+
 
   /* Screenplay page styling */
   .screenplay-page {
     font-family: "Courier Prime", "Courier New", monospace;
     font-size: 12pt;
     line-height: 1;
+  }
+
+  /* Force LTR direction for all screenplay editable elements */
+  .screenplay-page [contenteditable] {
+    direction: ltr !important;
+    unicode-bidi: normal !important;
   }
 }
