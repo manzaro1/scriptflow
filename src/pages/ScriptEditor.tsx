@@ -398,13 +398,17 @@ const ScriptEditor = () => {
     // Auto-uppercase for sluglines, character names, and transitions
     if (type === 'slugline' || type === 'character' || type === 'transition') {
       content = content.toUpperCase();
-      el.innerText = content;
+      // Only update DOM if content actually changed to avoid cursor issues
+      if (el.innerText !== content) {
+        el.innerText = content;
+      }
     }
 
     const updated = blocksRef.current.map((b, i) =>
       i === index ? { ...b, content, type } : b
     );
     blocksRef.current = updated;
+    // Update state without triggering unnecessary re-renders during typing
     setBlocks(updated);
     markUnsaved();
   };
@@ -654,7 +658,7 @@ const ScriptEditor = () => {
                 contentEditable={!isReadOnly}
                 suppressContentEditableWarning
                 dir="ltr"
-                style={{ direction: 'ltr', unicodeBidi: 'embed' }}
+                style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
                 onBlur={(e) => {
                   if (!isReadOnly) {
                     setScriptTitle(sanitizeInput(e.currentTarget.innerText));
@@ -670,7 +674,7 @@ const ScriptEditor = () => {
                 contentEditable={!isReadOnly}
                 suppressContentEditableWarning
                 dir="ltr"
-                style={{ direction: 'ltr', unicodeBidi: 'embed' }}
+                style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
                 onBlur={(e) => {
                   if (!isReadOnly) {
                     setScriptAuthor(sanitizeInput(e.currentTarget.innerText));
@@ -705,8 +709,9 @@ const ScriptEditor = () => {
                     suppressContentEditableWarning
                     dir="ltr"
                     className={getBlockStyles(block.type, focusedBlockId === block.id)}
-                    style={{ direction: 'ltr', unicodeBidi: 'embed', textAlign: block.type === 'transition' ? 'right' : 'left' }}
+                    style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: block.type === 'transition' ? 'right' : 'left' }}
                     onKeyDown={(e) => handleKeyDown(e, index)}
+                    onInput={() => { if (!isReadOnly) markUnsaved(); }}
                     onBlur={() => handleBlur(index)}
                     onFocus={() => setFocusedBlockId(block.id)}
                   />

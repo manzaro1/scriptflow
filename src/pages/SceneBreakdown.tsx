@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeInput } from "@/utils/security";
 import { motion } from "framer-motion";
 
 interface ScriptBlock {
@@ -60,8 +61,12 @@ const SceneBreakdown = () => {
         showError("Failed to load script content.");
         console.error(error);
       } else if (data) {
-        setScriptTitle(data.title);
-        setBlocks(data.content as ScriptBlock[]);
+        setScriptTitle(sanitizeInput(data.title));
+        const sanitizedBlocks = (data.content as ScriptBlock[]).map(block => ({
+          ...block,
+          content: sanitizeInput(block.content),
+        }));
+        setBlocks(sanitizedBlocks);
       }
       setLoading(false);
     };

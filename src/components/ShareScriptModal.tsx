@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Share2, Mail, Link, Copy, Check, Trash2, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeInput } from "@/utils/security";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ShareScriptModalProps {
@@ -52,23 +53,24 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
     setLoading(true);
 
     try {
+      const sanitizedEmail = sanitizeInput(email.toLowerCase());
       const { error } = await supabase
         .from('script_collaborators')
         .insert({
           script_id: scriptId,
-          email: email.toLowerCase(),
+          email: sanitizedEmail,
           role: role
         });
 
       if (error) throw error;
 
       // Send invitation email via Resend edge function
-      const scriptUrl = `${window.location.origin}/editor?id=${scriptId}`;
+      const scriptUrl = `${window.location.origin}/editor?id=${encodeURIComponent(scriptId)}`;
       supabase.functions.invoke('send-invite-email', {
         body: {
-          to: email.toLowerCase(),
-          inviterName: inviterName || 'A ScriptFlow user',
-          scriptTitle: scriptTitle || 'Untitled Script',
+          to: sanitizedEmail,
+          inviterName: sanitizeInput(inviterName || 'A ScriptFlow user'),
+          scriptTitle: sanitizeInput(scriptTitle || 'Untitled Script'),
           role,
           scriptUrl,
         },
@@ -80,7 +82,8 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
       setEmail('');
       fetchCollaborators();
     } catch (err: any) {
-      showError(err.message || "Failed to send invitation");
+      console.error("[ShareScriptModal]", err);
+      showError("Failed to send invitation. Please try again.");
     } finally {
       setLoading(false);
     }

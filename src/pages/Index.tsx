@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { showError } from '@/utils/toast';
+import { sanitizeInput } from '@/utils/security';
 import { motion, AnimatePresence } from "framer-motion";
 
 const Index = () => {
@@ -50,7 +51,7 @@ const Index = () => {
 
       if (scriptError) {
         console.error("[Dashboard] Supabase Error:", scriptError.message, scriptError.details);
-        showError(`Database error: ${scriptError.message}`);
+        showError("Failed to load scripts. Please try again.");
       } else if (scriptData) {
         setScripts(scriptData);
         setTotalCollaborators(0);
@@ -101,15 +102,16 @@ const Index = () => {
   const genres = ["all", ...new Set(scripts.map(s => s.genre))];
 
   const handleRename = async (id: string, newTitle: string) => {
+    const sanitizedTitle = sanitizeInput(newTitle);
     const { error } = await supabase
       .from('scripts')
-      .update({ title: newTitle, updated_at: new Date().toISOString() })
+      .update({ title: sanitizedTitle, updated_at: new Date().toISOString() })
       .eq('id', id);
 
     if (error) {
       showError("Failed to rename script.");
     } else {
-      setScripts(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
+      setScripts(prev => prev.map(s => s.id === id ? { ...s, title: sanitizedTitle } : s));
     }
   };
 

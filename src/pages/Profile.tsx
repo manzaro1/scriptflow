@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeInput } from "@/utils/security";
 import { getGeminiKey, setGeminiKey, removeGeminiKey, testGeminiKey } from "@/utils/ai";
 import { useSearchParams } from "react-router-dom";
 
@@ -137,7 +138,7 @@ const Profile = () => {
     };
 
     setTeamMembers(prev => [...prev, newMember]);
-    showSuccess(`Team invitation sent to ${inviteEmail}`);
+    showSuccess(`Team invitation sent to ${sanitizeInput(inviteEmail)}`);
     setInviteEmail('');
   };
 

@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles, FileText, Edit3, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeInput } from "@/utils/security";
 import ScriptUpload from "./ScriptUpload";
 
 const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, onComplete?: () => void }) => {
@@ -88,9 +89,9 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
         .from('scripts')
         .insert({
           user_id: user.id,
-          title: title || 'Untitled Screenplay',
-          author: author || 'Anonymous',
-          genre: genre,
+          title: sanitizeInput(title) || 'Untitled Screenplay',
+          author: sanitizeInput(author) || 'Anonymous',
+          genre: sanitizeInput(genre),
           content: initialContent,
           status: 'Draft'
         });
@@ -109,7 +110,8 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
       setUploadedFile(null);
       setTitle('');
     } catch (err: any) {
-      showError(err.message || "Failed to create script");
+      console.error("[NewScriptModal]", err);
+      showError("Failed to create script. Please try again.");
     } finally {
       setIsCreating(false);
     }

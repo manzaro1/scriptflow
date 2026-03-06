@@ -1,9 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '';
+
+const getCorsHeaders = (req: Request) => {
+  const origin = req.headers.get('origin') || '';
+  const allowedOrigin = ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN ? origin : '';
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+};
 
 interface ScriptBlock {
   id: string;
@@ -12,17 +19,38 @@ interface ScriptBlock {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { scriptBlocks, aspectRatio, model } = await req.json();
+    // Verify authentication
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // In a real production environment, you would use Deno.env.get("AI_PROVIDER_API_KEY")
-    // to securely access your keys and call the AI provider (OpenAI, Google, etc.)
-    // console.log(`[generate-storyboard] Generating storyboard using model: ${model}`);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { scriptBlocks, aspectRatio, model } = await req.json();
 
     const extracted = [];
     let currentSlug = "INT. UNKNOWN - DAY";
@@ -48,7 +76,7 @@ serve(async (req) => {
       if (block.type === 'action') {
         const context = scriptBlocks.slice(index + 1, index + 5);
         const dialogueBeat = context.find((b: ScriptBlock) => b.type === 'dialogue')?.content || '[Ambient Action]';
-        
+
         const shotTypes = ['W.S', 'M.S', 'C.U', 'O.T.S', 'E.C.U'];
         const movements = ['Static / Locked', 'Slow Dolly In', 'Lateral Tracking Shot', 'Handheld / Shaky', 'Crane Down'];
         const angles = ['Normal Angle', 'Low Angle', 'High Angle', 'Dutch Angle'];
@@ -89,9 +117,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("[generate-storyboard] Error:", error.message);
+    console.error("[generate-storyboard]", error.message);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Failed to generate storyboard" }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

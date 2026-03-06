@@ -466,7 +466,7 @@ const CallSheet = () => {
                   <div className="space-y-4 bg-amber-50/50 dark:bg-amber-900/10 p-6 rounded-xl border-2 border-amber-200/50 dark:border-amber-800/30 shadow-sm relative">
                     <div className="absolute -top-2 -right-2 h-6 w-6 bg-amber-400 rounded-full shadow-md print:hidden" />
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-400">Production Notes</h3>
-                    <div className="text-xs space-y-3 list-disc pl-4 text-muted-foreground font-medium outline-none focus:bg-white/50 dark:focus:bg-black/20 p-2 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => sanitizeInput(e.currentTarget.innerText)}>
+                    <div className="text-xs space-y-3 list-disc pl-4 text-muted-foreground font-medium outline-none focus:bg-white/50 dark:focus:bg-black/20 p-2 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => { e.currentTarget.innerText = sanitizeInput(e.currentTarget.innerText); }}>
                       <p>• Safety meeting at 07:15 for all electrical and grip crew.</p>
                       <p>• Heavy rain effects in Scene 12—bring appropriate weather gear.</p>
                       <p>• Parking strictly enforced in Hangar lot; use shuttle for Overflow.</p>
@@ -477,7 +477,7 @@ const CallSheet = () => {
                         <CalendarDays size={14} />
                         <span className="text-[10px] font-black uppercase">Tomorrow's Look</span>
                       </div>
-                      <p className="text-[10px] mt-1 italic outline-none focus:bg-white/50 dark:focus:bg-black/20 p-1 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => sanitizeInput(e.currentTarget.innerText)}>
+                      <p className="text-[10px] mt-1 italic outline-none focus:bg-white/50 dark:focus:bg-black/20 p-1 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => { e.currentTarget.innerText = sanitizeInput(e.currentTarget.innerText); }}>
                         Scene 16-19: Night exterior car chase sequence. Prep vehicles for 14:00.
                       </p>
                     </div>
