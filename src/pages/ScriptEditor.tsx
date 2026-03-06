@@ -709,7 +709,7 @@ const ScriptEditor = () => {
                     suppressContentEditableWarning
                     dir="ltr"
                     className={getBlockStyles(block.type, focusedBlockId === block.id)}
-                    style={{ direction: 'ltr', textAlign: block.type === 'transition' ? 'right' : 'left' }}
+                    style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: block.type === 'transition' ? 'right' : 'left' }}
                     onKeyDown={(e) => handleKeyDown(e, index)}
                     onInput={() => { if (!isReadOnly) markUnsaved(); }}
                     onBlur={() => handleBlur(index)}
