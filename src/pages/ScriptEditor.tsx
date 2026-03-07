@@ -418,13 +418,6 @@ const ScriptEditor = () => {
     const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     const focusBorder = isFocused && !isReadOnly ? "border-l-2" : "border-l-2 border-transparent";
 
-    // Industry-standard screenplay format (relative to the 6in text area inside 1.5in + 1in margins):
-    // Character name: centered, ~3.7in from page left = ~2.2in from text left, narrow block
-    // Dialogue: ~1in from text left, ~3.5in wide
-    // Parenthetical: ~1.5in from text left, ~2.5in wide
-    // Slugline: full width, left-aligned, ALL CAPS
-    // Action: full width, left-aligned
-    // Transition: right-aligned, ALL CAPS
     switch (type) {
       case 'character':
         return cn(base, editClass, focusBorder, isFocused && "border-l-film-violet",
@@ -646,7 +639,7 @@ const ScriptEditor = () => {
             "py-[1in] font-screenplay text-[12pt] leading-normal screenplay-page",
             isReadOnly ? "cursor-default" : "cursor-text"
           )}
-          style={{ paddingLeft: '1.5in', paddingRight: '1in' }}
+          style={{ paddingLeft: '1.5in', paddingRight: '1in', direction: 'ltr' }}
           >
             {/* Page number */}
             <div className="absolute top-6 right-[1in] text-[10pt] text-gray-400 font-screenplay">1.</div>
@@ -707,9 +700,10 @@ const ScriptEditor = () => {
                     }}
                     contentEditable={!isReadOnly}
                     suppressContentEditableWarning
+                    dir="ltr"
                     className={getBlockStyles(block.type, focusedBlockId === block.id)}
                     style={{ 
-                      '--tw-direction': 'ltr',
+                      direction: 'ltr',
                       textAlign: block.type === 'transition' ? 'right' : 'left'
                     } as React.CSSProperties}
                     onKeyDown={(e) => handleKeyDown(e, index)}
