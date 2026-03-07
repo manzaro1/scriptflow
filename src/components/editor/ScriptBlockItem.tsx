@@ -42,7 +42,7 @@ const ScriptBlockItem = ({
 }: ScriptBlockItemProps) => {
   
   const getBlockStyles = (type: string, isFocused: boolean) => {
-    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded whitespace-pre-wrap font-screenplay text-[12pt] leading-normal relative";
+    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded whitespace-pre-wrap font-screenplay text-[12pt] leading-normal relative block w-full";
     const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     const focusBorder = isFocused && !isReadOnly ? "border-l-2" : "border-l-2 border-transparent";
 
@@ -56,14 +56,14 @@ const ScriptBlockItem = ({
       case 'slugline':
         return cn(base, editClass, focusBorder, isFocused && "border-l-film-amber", "uppercase font-bold mb-4 mt-8 text-left");
       case 'transition':
-        return cn(base, editClass, focusBorder, isFocused && "border-l-amber-500", "uppercase font-bold mb-4 mt-4 text-right");
+        return cn(base, editClass, focusBorder, isFocused && "border-l-amber-500", "script-block-transition uppercase font-bold mb-4 mt-4 text-right");
       default: // action
         return cn(base, editClass, focusBorder, isFocused && "border-l-muted-foreground/30", "mb-4 text-left");
     }
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-full" style={{ direction: 'ltr' }}>
       {isFocused && !isReadOnly && (
         <div className="absolute -left-[1.3in] top-0 text-[8px] font-bold uppercase tracking-wider text-muted-foreground/40 select-none">
           {block.type}
@@ -74,10 +74,11 @@ const ScriptBlockItem = ({
         contentEditable={!isReadOnly}
         suppressContentEditableWarning
         dir="ltr"
+        spellCheck={false}
         className={getBlockStyles(block.type, isFocused)}
         style={{ 
           direction: 'ltr',
-          textAlign: block.type === 'transition' ? 'right' : 'left'
+          unicodeBidi: 'isolate-override'
         } as React.CSSProperties}
         onKeyDown={onKeyDown}
         onInput={onInput}
@@ -97,7 +98,7 @@ const ScriptBlockItem = ({
       )}
 
       {isSuggestionTarget && (aiLoading || aiSuggestion) && (
-        <div className="pl-2 mt-0.5 select-none pointer-events-none">
+        <div className="pl-2 mt-0.5 select-none pointer-events-none" style={{ direction: 'ltr' }}>
           {aiLoading && !aiSuggestion && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
               <Loader2 size={12} className="animate-spin" />

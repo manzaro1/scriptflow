@@ -6,34 +6,24 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
-
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-
     --primary: 263 70% 50%;
     --primary-foreground: 0 0% 100%;
-
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
-
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-
     --accent: 240 4.8% 95.9%;
     --accent-foreground: 240 5.9% 10%;
-
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 263 70% 50%;
-
     --radius: 0.5rem;
-
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 263 70% 50%;
@@ -42,8 +32,6 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 263 70% 50%;
-
-    /* Film-industry tokens */
     --film-amber: 38 92% 50%;
     --film-violet: 263 70% 50%;
     --film-slate: 215 20% 65%;
@@ -53,32 +41,23 @@
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
-
     --card: 240 10% 5.5%;
     --card-foreground: 0 0% 98%;
-
     --popover: 240 10% 5.5%;
     --popover-foreground: 0 0% 98%;
-
     --primary: 263 70% 58%;
     --primary-foreground: 0 0% 100%;
-
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
-
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
-
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 263 70% 58%;
-
     --sidebar-background: 240 10% 5%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 263 70% 58%;
@@ -87,8 +66,6 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 263 70% 58%;
-
-    /* Film-industry tokens (dark) */
     --film-amber: 38 92% 55%;
     --film-violet: 263 70% 58%;
     --film-slate: 215 20% 50%;
@@ -101,26 +78,22 @@
     @apply border-border;
   }
 
-  html {
+  html, body {
+    direction: ltr !important;
+    text-align: left !important;
     font-family: "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-
-  body {
-    @apply bg-background text-foreground;
-  }
 }
 
 @layer utilities {
-  /* Stagger delay utilities for animations */
   .stagger-1 { animation-delay: 0.1s; }
   .stagger-2 { animation-delay: 0.2s; }
   .stagger-3 { animation-delay: 0.3s; }
   .stagger-4 { animation-delay: 0.4s; }
   .stagger-5 { animation-delay: 0.5s; }
 
-  /* Shimmer background for CTAs */
   .bg-shimmer {
     background: linear-gradient(
       110deg,
@@ -131,30 +104,29 @@
     background-size: 200% 100%;
   }
 
-  /* Glass morphism utility */
   .glass {
     @apply bg-background/80 backdrop-blur-xl border border-border/50;
   }
 
-  /* Screenplay page styling */
   .screenplay-page {
     font-family: "Courier Prime", "Courier New", monospace;
     font-size: 12pt;
     line-height: 1.2;
+    direction: ltr !important;
   }
 }
 
-/* Force LTR direction for ALL contenteditable elements globally */
+/* 
+  Force LTR for ALL editable regions and their parents.
+  Using isolate-override forces the browser to ignore potential RTL markers in typed text.
+*/
 [contenteditable] {
   direction: ltr !important;
+  unicode-bidi: isolate-override !important;
   text-align: left !important;
-  unicode-bidi: plaintext !important;
 }
 
-/* Additional fix for screenplay contenteditable elements */
-.screenplay-page [contenteditable],
-.screenplay-page [contenteditable]:focus {
-  direction: ltr !important;
-  text-align: left !important;
-  unicode-bidi: bidi-override !important;
+/* Allow right alignment for transitions specifically, but keep typing order LTR */
+.script-block-transition[contenteditable] {
+  text-align: right !important;
 }
