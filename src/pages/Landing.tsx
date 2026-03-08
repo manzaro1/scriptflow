@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, useInView } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -61,7 +62,11 @@ const Landing = () => {
   };
 
   if (loading) {
-    return null;
+    return (
+      <div className="h-screen w-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
   }
 
   return (

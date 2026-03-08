@@ -1,81 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { type ThemeProviderProps } from "next-themes/dist/types";
 
-type Theme = "light" | "dark" | "system";
-
-interface ThemeProviderProps {
-  children: React.ReactNode;
-  attribute?: string;
-  defaultTheme?: Theme;
-  enableSystem?: boolean;
-}
-
-interface ThemeContextType {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-}
-
-const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);
-
-export function ThemeProvider({ 
-  children, 
-  defaultTheme = "system", 
-  enableSystem = true,
-  ...props 
-}: ThemeProviderProps) {
-  const [theme, setTheme] = React.useState<Theme>(defaultTheme);
-
-  React.useEffect(() => {
-    const root = window.document.documentElement;
-    
-    const applyTheme = (selectedTheme: Theme) => {
-      root.classList.remove("light", "dark");
-      
-      if (selectedTheme === "system") {
-        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
-        root.classList.add(systemTheme);
-      } else {
-        root.classList.add(selectedTheme);
-      }
-    };
-
-    applyTheme(theme);
-
-    if (enableSystem) {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handleChange = () => {
-        if (theme === "system") {
-          applyTheme("system");
-        }
-      };
-      
-      mediaQuery.addEventListener("change", handleChange);
-      return () => mediaQuery.removeEventListener("change", handleChange);
-    }
-  }, [theme, enableSystem]);
-
-  const value = {
-    theme,
-    setTheme: (newTheme: Theme) => {
-      setTheme(newTheme);
-      localStorage.setItem("theme", newTheme);
-    },
-  };
-
+export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  // Always render children - next-themes handles SSR gracefully
+  // The key is to NOT skip rendering based on mounted state
   return (
-    <ThemeContext.Provider value={value} {...props}>
+    <NextThemesProvider {...props}>
       {children}
-    </ThemeContext.Provider>
+    </NextThemesProvider>
   );
-}
-
-export function useTheme() {
-  const context = React.useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
 }
