@@ -122,11 +122,21 @@
 */
 [contenteditable] {
   direction: ltr !important;
-  unicode-bidi: isolate-override !important;
+  unicode-bidi: plaintext !important;
+  text-align: left !important;
+}
+
+/* Explicitly force LTR for screenplay editor blocks */
+.screenplay-page [contenteditable],
+.screenplay-page [contenteditable] *,
+.screenplay-page .font-screenplay {
+  direction: ltr !important;
+  unicode-bidi: plaintext !important;
   text-align: left !important;
 }
 
 /* Allow right alignment for transitions specifically, but keep typing order LTR */
 .script-block-transition[contenteditable] {
   text-align: right !important;
+  direction: ltr !important;
 }

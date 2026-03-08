@@ -78,7 +78,8 @@ const ScriptBlockItem = ({
         className={getBlockStyles(block.type, isFocused)}
         style={{ 
           direction: 'ltr',
-          unicodeBidi: 'isolate-override'
+          unicodeBidi: 'plaintext',
+          textAlign: 'left'
         } as React.CSSProperties}
         onKeyDown={onKeyDown}
         onInput={onInput}
