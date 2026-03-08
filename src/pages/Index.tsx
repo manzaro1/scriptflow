@@ -28,7 +28,7 @@ import { sanitizeInput } from '@/utils/security';
 import { motion, AnimatePresence } from "framer-motion";
 
 const Index = () => {
-  const { user, session, loading: authLoading } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const [scripts, setScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,20 +36,6 @@ const Index = () => {
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [totalCollaborators, setTotalCollaborators] = useState(0);
-
-  // Show loading while checking auth state
-  if (authLoading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-primary" size={32} />
-      </div>
-    );
-  }
-
-  // Redirect to auth if not authenticated
-  if (!user || !session) {
-    return null;
-  }
 
   const fetchScripts = useCallback(async (showSkeleton = true) => {
     if (!user || !session) return;
