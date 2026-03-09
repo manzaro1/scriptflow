@@ -11,7 +11,7 @@ import OnboardingTour from "@/components/OnboardingTour";
 import ScriptCardSkeleton from "@/components/ScriptCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Filter, SearchX, Loader2, RefreshCw, Film, Plus, Sparkles, ArrowRight, FileText, BrainCircuit, Clapperboard } from 'lucide-react';
+import { Filter, SearchX, RefreshCw, Film, Plus, ArrowRight, FileText, BrainCircuit, Clapperboard } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
@@ -29,17 +29,14 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const Index = () => {
   const { user, session } = useAuth();
-  const navigate = useNavigate();
   const [scripts, setScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [totalCollaborators, setTotalCollaborators] = useState(0);
 
   const fetchScripts = useCallback(async (showSkeleton = true) => {
-    if (!user || !session) return;
-
+    if (!user) return;
     if (showSkeleton) setLoading(true);
 
     try {
@@ -50,25 +47,24 @@ const Index = () => {
         .order('updated_at', { ascending: false });
 
       if (scriptError) {
-        console.error("[Dashboard] Supabase Error:", scriptError.message, scriptError.details);
-        showError("Failed to load scripts. Please try again.");
-      } else if (scriptData) {
-        setScripts(scriptData);
-        setTotalCollaborators(0);
+        console.error("[Dashboard] Error:", scriptError);
+        showError("Failed to load scripts.");
+      } else {
+        setScripts(scriptData || []);
       }
     } catch (err) {
-      console.error("[Dashboard] Unexpected error:", err);
-      showError("An unexpected error occurred while loading your library.");
+      console.error("[Dashboard] Error:", err);
     } finally {
       setLoading(false);
     }
-  }, [user, session]);
+  }, [user]);
 
   useEffect(() => {
-    if (user && session) fetchScripts();
-  }, [user, session, fetchScripts]);
+    if (user) fetchScripts();
+  }, [user, fetchScripts]);
 
   const filteredScripts = useMemo(() => {
+    if (!Array.isArray(scripts)) return [];
     return scripts.filter(script => {
       const matchesTab =
         activeTab === "all" ||
@@ -78,28 +74,25 @@ const Index = () => {
 
       const matchesGenre = genreFilter === "all" || script.genre === genreFilter;
       const matchesSearch =
-        script.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        script.author.toLowerCase().includes(searchQuery.toLowerCase());
+        (script.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (script.author || "").toLowerCase().includes(searchQuery.toLowerCase());
 
       return matchesTab && matchesGenre && matchesSearch;
     });
   }, [scripts, activeTab, genreFilter, searchQuery, user?.id]);
 
   const stats = useMemo(() => {
+    if (!Array.isArray(scripts)) return { total: 0, finished: 0, pages: 0 };
     const finished = scripts.filter(s => s.status === 'Final').length;
     const pages = scripts.reduce((acc, s) => {
       const content = Array.isArray(s.content) ? s.content : [];
       return acc + Math.max(1, Math.ceil(content.length / 15));
     }, 0);
 
-    return {
-      total: scripts.length,
-      finished,
-      pages
-    };
+    return { total: scripts.length, finished, pages };
   }, [scripts]);
 
-  const genres = ["all", ...new Set(scripts.map(s => s.genre))];
+  const genres = ["all", ...new Set(scripts.map(s => s.genre).filter(Boolean))];
 
   const handleRename = async (id: string, newTitle: string) => {
     const sanitizedTitle = sanitizeInput(newTitle);
@@ -108,23 +101,16 @@ const Index = () => {
       .update({ title: sanitizedTitle, updated_at: new Date().toISOString() })
       .eq('id', id);
 
-    if (error) {
-      showError("Failed to rename script.");
-    } else {
-      setScripts(prev => prev.map(s => s.id === id ? { ...s, title: sanitizedTitle } : s));
-    }
+    if (error) showError("Failed to rename.");
+    else fetchScripts(false);
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('scripts').delete().eq('id', id);
-    if (error) {
-      showError("Failed to delete script.");
-    } else {
-      setScripts(prev => prev.filter(s => s.id !== id));
-    }
+    if (error) showError("Failed to delete.");
+    else fetchScripts(false);
   };
 
-  // New user welcome / onboarding screen
   const isNewUser = !loading && scripts.length === 0;
 
   if (isNewUser) {
@@ -135,91 +121,19 @@ const Index = () => {
           <Sidebar />
           <main className="flex-1 p-6 md:p-8 overflow-y-auto">
             <div className="max-w-3xl mx-auto pt-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="text-center space-y-6"
-              >
-                <div className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-xl shadow-primary/25">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-6">
+                <div className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-xl">
                   <Film className="h-10 w-10 text-white" />
                 </div>
-
-                <div className="space-y-3">
-                  <h1 className="text-4xl font-black tracking-tight">
-                    Welcome to ScriptFlow
-                    {user?.user_metadata?.first_name ? `, ${user.user_metadata.first_name}` : ''}!
-                  </h1>
-                  <p className="text-lg text-muted-foreground max-w-md mx-auto leading-relaxed">
-                    Your professional screenwriting studio is ready. Create your first screenplay to get started.
-                  </p>
-                </div>
-
+                <h1 className="text-4xl font-black">Welcome to ScriptFlow!</h1>
+                <p className="text-lg text-muted-foreground">Create your first screenplay to get started.</p>
                 <div className="pt-4">
                   <NewScriptModal onComplete={() => fetchScripts(false)}>
-                    <Button size="lg" className="h-14 px-8 text-lg font-bold gap-3 shadow-xl shadow-primary/25">
-                      <Plus size={22} />
-                      Create Your First Script
-                      <ArrowRight size={20} />
+                    <Button size="lg" className="h-14 px-8 text-lg font-bold gap-3 shadow-xl">
+                      <Plus size={22} /> Create Your First Script <ArrowRight size={20} />
                     </Button>
                   </NewScriptModal>
                 </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16"
-              >
-                {[
-                  {
-                    icon: FileText,
-                    title: "Write",
-                    description: "Industry-standard screenplay editor with proper formatting, scene headers, and character names.",
-                    color: "text-blue-600",
-                    bg: "bg-blue-500/10"
-                  },
-                  {
-                    icon: BrainCircuit,
-                    title: "Analyze",
-                    description: "AI monitors character consistency, pacing, and narrative tension in real-time as you write.",
-                    color: "text-purple-600",
-                    bg: "bg-purple-500/10"
-                  },
-                  {
-                    icon: Clapperboard,
-                    title: "Produce",
-                    description: "Generate call sheets, scene breakdowns, and storyboards directly from your script.",
-                    color: "text-orange-600",
-                    bg: "bg-orange-500/10"
-                  },
-                ].map((feature, i) => (
-                  <motion.div
-                    key={feature.title}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.5 + i * 0.1 }}
-                    className="p-6 rounded-xl border bg-card text-center space-y-3"
-                  >
-                    <div className={`h-12 w-12 rounded-xl ${feature.bg} flex items-center justify-center mx-auto`}>
-                      <feature.icon className={`h-6 w-6 ${feature.color}`} />
-                    </div>
-                    <h3 className="font-bold">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.8 }}
-                className="mt-12 text-center"
-              >
-                <p className="text-xs text-muted-foreground">
-                  Press <kbd className="px-1.5 py-0.5 rounded border bg-muted font-mono text-[10px]">Tab</kbd> in the editor to cycle block types &middot; <kbd className="px-1.5 py-0.5 rounded border bg-muted font-mono text-[10px]">Enter</kbd> for new block &middot; Type <span className="font-mono">INT.</span> or <span className="font-mono">EXT.</span> for scene headings
-                </p>
               </motion.div>
             </div>
           </main>
@@ -236,117 +150,60 @@ const Index = () => {
         <Sidebar />
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           <div className="max-w-6xl mx-auto space-y-8">
-            <motion.header
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="flex flex-col md:flex-row md:items-center justify-between gap-4 tour-scripts-header"
-            >
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 tour-scripts-header">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Script Library</h1>
-                <p className="text-muted-foreground mt-1">Manage and edit your screenplays in one place.</p>
+                <p className="text-muted-foreground mt-1">Manage and edit your screenplays.</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fetchScripts(false)}
-                  disabled={loading}
-                  className="h-8 w-8"
-                >
+                <Button variant="ghost" size="icon" onClick={() => fetchScripts(false)} disabled={loading}>
                   <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                 </Button>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Filter size={16} />
-                      Genre: {genreFilter.charAt(0).toUpperCase() + genreFilter.slice(1)}
-                    </Button>
+                    <Button variant="outline" size="sm">Filter Genre</Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>Filter by Genre</DropdownMenuLabel>
+                    <DropdownMenuLabel>Genre</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuRadioGroup value={genreFilter} onValueChange={setGenreFilter}>
                       {genres.map(genre => (
-                        <DropdownMenuRadioItem key={genre} value={genre}>
-                          {genre.charAt(0).toUpperCase() + genre.slice(1)}
-                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem key={genre} value={genre}>{genre}</DropdownMenuRadioItem>
                       ))}
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-
-                <div className="tour-new-script">
-                  <NewScriptModal onComplete={() => fetchScripts(false)} />
-                </div>
+                <NewScriptModal onComplete={() => fetchScripts(false)} />
               </div>
-            </motion.header>
-
-            <div className="tour-stats">
-              <ProductionStats
-                totalScripts={stats.total}
-                totalFinished={stats.finished}
-                totalPages={stats.pages}
-                totalCollaborators={totalCollaborators}
-              />
-            </div>
-
-            <Tabs defaultValue="all" className="w-full tour-tabs" onValueChange={setActiveTab}>
-              <div className="flex items-center justify-between mb-6">
-                <TabsList>
-                  <TabsTrigger value="all">All Scripts</TabsTrigger>
-                  <TabsTrigger value="recent">Recent</TabsTrigger>
-                  <TabsTrigger value="shared">Shared</TabsTrigger>
-                  <TabsTrigger value="archived">Archived</TabsTrigger>
-                </TabsList>
-              </div>
-
+            </header>
+            <ProductionStats totalScripts={stats.total} totalFinished={stats.finished} totalPages={stats.pages} />
+            <Tabs defaultValue="all" onValueChange={setActiveTab}>
+              <TabsList className="mb-6">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="recent">Recent</TabsTrigger>
+                <TabsTrigger value="shared">Shared</TabsTrigger>
+                <TabsTrigger value="archived">Archived</TabsTrigger>
+              </TabsList>
               {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[...Array(6)].map((_, i) => (
-                    <ScriptCardSkeleton key={i} />
+                  {[...Array(6)].map((_, i) => <ScriptCardSkeleton key={i} />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredScripts.map((script) => (
+                    <ScriptCard
+                      key={script.id}
+                      id={script.id}
+                      title={script.title}
+                      author={script.author}
+                      status={script.status as any}
+                      genre={script.genre}
+                      lastModified={new Date(script.updated_at).toLocaleDateString()}
+                      onRename={handleRename}
+                      onDelete={handleDelete}
+                    />
                   ))}
                 </div>
-              ) : filteredScripts.length > 0 ? (
-                <AnimatePresence mode="popLayout">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredScripts.map((script) => (
-                      <ScriptCard
-                        key={script.id}
-                        id={script.id}
-                        title={script.title}
-                        author={script.author}
-                        status={script.status as any}
-                        genre={script.genre}
-                        lastModified={new Date(script.updated_at).toLocaleDateString()}
-                        onRename={handleRename}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                </AnimatePresence>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-muted/10"
-                >
-                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                    <SearchX className="h-8 w-8 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-semibold">No matches found</h3>
-                  <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-                    Try adjusting your search or filter criteria, or create a new script.
-                  </p>
-                  <NewScriptModal onComplete={() => fetchScripts(false)}>
-                    <Button className="mt-6 gap-2">
-                      <Plus size={16} />
-                      Create New Script
-                    </Button>
-                  </NewScriptModal>
-                </motion.div>
               )}
             </Tabs>
           </div>
