@@ -20,6 +20,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     // Use onAuthStateChange as the single source of truth.
     // It fires INITIAL_SESSION on mount with a properly refreshed token,
     // avoiding the race condition where getSession() returns a stale token
@@ -39,6 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    if (!supabase) return;
     const { error } = await supabase.auth.signOut();
     // Always clear local state even if the server call fails,
     // so the user is never stuck in a "logged in" ghost state
