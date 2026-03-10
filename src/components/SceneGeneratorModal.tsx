@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Wand2, Loader2, Plus, RotateCcw } from 'lucide-react';
+import { Wand2, Loader2, Plus, RotateCcw, Users } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,9 +22,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { showError, showSuccess } from "@/utils/toast";
-import { callAIFunction, hasGeminiKey } from "@/utils/ai";
-import NoApiKeyPrompt from "@/components/NoApiKeyPrompt";
+import { aiPrompt } from "@/utils/ai-client";
+import { loadAIConfig } from "@/utils/ai-providers";
 import { cn } from "@/lib/utils";
 
 interface ScriptBlock {
@@ -40,7 +41,12 @@ interface SceneGeneratorModalProps {
   onInsert: (blocks: ScriptBlock[]) => void;
 }
 
-const TONES = ['Dramatic', 'Comedy', 'Thriller', 'Horror', 'Sci-Fi', 'Romance', 'Action', 'Mystery'];
+const TONES = ['Dramatic', 'Comedy', 'Thriller', 'Horror', 'Sci-Fi', 'Romance', 'Action', 'Mystery', 'Noir', 'Surreal'];
+const SCENE_LENGTHS = [
+  { value: 'short', label: 'Short (5-10 blocks)' },
+  { value: 'medium', label: 'Medium (10-20 blocks)' },
+  { value: 'long', label: 'Long (20-35 blocks)' },
+];
 
 const typeColors: Record<string, string> = {
   slugline: 'text-amber-600 bg-amber-500/10',
@@ -54,38 +60,80 @@ const typeColors: Record<string, string> = {
 const SceneGeneratorModal = ({ isOpen, onOpenChange, existingCharacters, onInsert }: SceneGeneratorModalProps) => {
   const [premise, setPremise] = useState('');
   const [tone, setTone] = useState('Dramatic');
+  const [sceneLength, setSceneLength] = useState('medium');
+  const [selectedChars, setSelectedChars] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generatedBlocks, setGeneratedBlocks] = useState<ScriptBlock[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [mode, setMode] = useState<'premise' | 'outline'>('premise');
+  const [outline, setOutline] = useState('');
+
+  const toggleChar = (char: string) => {
+    setSelectedChars(prev => prev.includes(char) ? prev.filter(c => c !== char) : [...prev, char]);
+  };
 
   const handleGenerate = async () => {
-    if (!premise.trim()) {
-      showError("Enter a scene premise first");
+    const config = loadAIConfig();
+    if (!config.apiKey && config.provider !== 'custom') {
+      showError("Set up your API key in Settings > AI");
+      return;
+    }
+
+    const input = mode === 'premise' ? premise : outline;
+    if (!input.trim()) {
+      showError(mode === 'premise' ? "Enter a scene premise first" : "Enter an outline first");
       return;
     }
 
     setGenerating(true);
     setGeneratedBlocks([]);
 
-    const { data, error } = await callAIFunction('ai-generate-scene', {
-      premise: premise.trim(),
-      tone,
-      existingCharacters,
-    });
+    const lengthGuide = sceneLength === 'short' ? '5-10' : sceneLength === 'medium' ? '10-20' : '20-35';
+    const charInstruction = selectedChars.length > 0
+      ? `Feature these characters: ${selectedChars.join(', ')}.`
+      : existingCharacters.length > 0
+        ? `Available characters: ${existingCharacters.join(', ')}. Use any that fit.`
+        : '';
+
+    const prompt = mode === 'premise'
+      ? `Scene premise: ${input.trim()}`
+      : `Generate a scene from this outline:\n${input.trim()}`;
+
+    const { text, error } = await aiPrompt(
+      `You are an expert screenwriter. Generate a properly formatted screenplay scene.
+Tone: ${tone}
+${charInstruction}
+Target length: ${lengthGuide} blocks.
+
+Return a JSON array of blocks where each has:
+- "id": unique string
+- "type": one of "slugline", "action", "character", "dialogue", "parenthetical", "transition"
+- "content": the text content
+
+Follow professional screenplay formatting. Start with a slugline.
+Return ONLY valid JSON array, no markdown fences.`,
+      prompt,
+      0.8
+    );
 
     setGenerating(false);
 
-    if (error === 'NO_API_KEY') {
-      showError("Set up your Gemini API key in Settings > AI");
-      return;
-    }
-    if (error || !data?.blocks?.length) {
-      showError(error || "Failed to generate scene");
+    if (error) {
+      showError(error === 'NO_API_KEY' ? "Set up your API key in Settings > AI" : error);
       return;
     }
 
-    setGeneratedBlocks(data.blocks);
-    setShowPreview(true);
+    try {
+      const parsed = JSON.parse(text.trim());
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setGeneratedBlocks(parsed);
+        setShowPreview(true);
+      } else {
+        showError("Failed to generate scene");
+      }
+    } catch {
+      showError("Failed to parse generated scene");
+    }
   };
 
   const handleInsert = () => {
@@ -96,20 +144,12 @@ const SceneGeneratorModal = ({ isOpen, onOpenChange, existingCharacters, onInser
 
   const handleClose = () => {
     setPremise('');
+    setOutline('');
     setGeneratedBlocks([]);
     setShowPreview(false);
+    setSelectedChars([]);
     onOpenChange(false);
   };
-
-  if (!hasGeminiKey()) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[450px]">
-          <NoApiKeyPrompt />
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -129,19 +169,52 @@ const SceneGeneratorModal = ({ isOpen, onOpenChange, existingCharacters, onInser
             </DialogHeader>
 
             <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="premise">Scene Premise</Label>
-                <Textarea
-                  id="premise"
-                  placeholder="e.g. A tense interrogation between detective RILEY and suspect MARCO in a dimly lit room. MARCO knows more than he's letting on."
-                  value={premise}
-                  onChange={(e) => setPremise(e.target.value)}
-                  className="min-h-[100px] resize-none"
-                />
+              {/* Mode toggle */}
+              <div className="flex gap-2">
+                <Button
+                  variant={mode === 'premise' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMode('premise')}
+                  className="text-xs"
+                >
+                  From Premise
+                </Button>
+                <Button
+                  variant={mode === 'outline' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMode('outline')}
+                  className="text-xs"
+                >
+                  From Outline
+                </Button>
               </div>
 
-              <div className="flex items-end gap-4">
-                <div className="space-y-2 flex-1">
+              {mode === 'premise' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="premise">Scene Premise</Label>
+                  <Textarea
+                    id="premise"
+                    placeholder="e.g. A tense interrogation between detective RILEY and suspect MARCO in a dimly lit room."
+                    value={premise}
+                    onChange={(e) => setPremise(e.target.value)}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="outline">Scene Outline</Label>
+                  <Textarea
+                    id="outline"
+                    placeholder={"1. RILEY enters the room, drops a file on the table\n2. MARCO stays silent, fidgeting\n3. RILEY reveals key evidence\n4. MARCO breaks down and confesses"}
+                    value={outline}
+                    onChange={(e) => setOutline(e.target.value)}
+                    className="min-h-[100px] resize-none"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label>Tone</Label>
                   <Select value={tone} onValueChange={setTone}>
                     <SelectTrigger>
@@ -154,25 +227,45 @@ const SceneGeneratorModal = ({ isOpen, onOpenChange, existingCharacters, onInser
                     </SelectContent>
                   </Select>
                 </div>
-                {existingCharacters.length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Characters in script</Label>
-                    <div className="flex flex-wrap gap-1">
-                      {existingCharacters.slice(0, 6).map(c => (
-                        <Badge key={c} variant="secondary" className="text-[10px]">{c}</Badge>
+                <div className="space-y-2">
+                  <Label>Scene Length</Label>
+                  <Select value={sceneLength} onValueChange={setSceneLength}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SCENE_LENGTHS.map(l => (
+                        <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
                       ))}
-                      {existingCharacters.length > 6 && (
-                        <Badge variant="outline" className="text-[10px]">+{existingCharacters.length - 6}</Badge>
-                      )}
-                    </div>
-                  </div>
-                )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              {existingCharacters.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Users size={14} />
+                    Include Characters
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {existingCharacters.map(c => (
+                      <label key={c} className="flex items-center gap-1.5 cursor-pointer">
+                        <Checkbox
+                          checked={selectedChars.includes(c)}
+                          onCheckedChange={() => toggleChar(c)}
+                        />
+                        <span className="text-xs font-medium">{c}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={handleClose}>Cancel</Button>
-              <Button onClick={handleGenerate} disabled={generating || !premise.trim()} className="gap-2">
+              <Button onClick={handleGenerate} disabled={generating || !(mode === 'premise' ? premise.trim() : outline.trim())} className="gap-2">
                 {generating ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
                 {generating ? 'Generating...' : 'Generate Scene'}
               </Button>

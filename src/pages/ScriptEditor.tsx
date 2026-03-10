@@ -58,6 +58,22 @@ const ScriptEditor = () => {
 
   useEffect(() => { blocksRef.current = blocks; }, [blocks]);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setShowRightPanel(prev => prev === 'ai' ? null : 'ai');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   useEffect(() => {
     const fetchScript = async () => {
       if (!scriptId || !authUser) return;
@@ -161,6 +177,31 @@ const ScriptEditor = () => {
   const pageCount = Math.max(1, Math.ceil(blocks.length / 15));
   const sceneSlugs = useMemo(() => blocks.filter(b => b.type === 'slugline'), [blocks]);
   const uniqueCharacters = useMemo(() => [...new Set(blocks.filter(b => b.type === 'character').map(b => b.content))], [blocks]);
+
+  // Auto-save with debounce
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!hasUnsaved || !scriptId || isReadOnly) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const updated = blocksRef.current.map(b => ({ ...b, content: blockRefs.current[b.id]?.innerText || b.content }));
+      const { error } = await supabase.from('scripts').update({ content: updated, title: sanitizeInput(scriptTitle), author: sanitizeInput(scriptAuthor), updated_at: new Date().toISOString() }).eq('id', scriptId);
+      if (!error) setHasUnsaved(false);
+    }, 3000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [hasUnsaved, scriptId, isReadOnly, scriptTitle, scriptAuthor]);
+
+  if (!scriptId) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <p className="text-lg font-semibold">No script selected</p>
+          <p className="text-sm text-muted-foreground">Open a script from your dashboard to start editing.</p>
+          <a href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Go to Dashboard</a>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return <div className="h-screen w-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 

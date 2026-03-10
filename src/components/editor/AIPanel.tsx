@@ -1,12 +1,29 @@
 "use client";
 
 import React from 'react';
-import { BrainCircuit, MessageSquare, X } from 'lucide-react';
+import { BrainCircuit, MessageSquare, Stethoscope, PenLine, Activity, Palette, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import ProductionOverseer from "@/components/ProductionOverseer";
 import CharacterChat from "@/components/CharacterChat";
+import ScriptDoctor from "@/components/ai/ScriptDoctor";
+import CharacterArcTracker from "@/components/ai/CharacterArcTracker";
+import ToneMoodAnalyzer from "@/components/ai/ToneMoodAnalyzer";
+
+interface AITab {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+}
+
+const AI_TABS: AITab[] = [
+  { id: 'overseer', label: 'Overseer', icon: <BrainCircuit size={12} /> },
+  { id: 'chat', label: 'Character', icon: <MessageSquare size={12} /> },
+  { id: 'doctor', label: 'Doctor', icon: <Stethoscope size={12} /> },
+  { id: 'arcs', label: 'Arcs', icon: <Activity size={12} /> },
+  { id: 'tone', label: 'Tone', icon: <Palette size={12} /> },
+];
 
 interface AIPanelProps {
   isOpen: boolean;
@@ -34,28 +51,27 @@ const AIPanel = ({
   return (
     <motion.aside
       initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 360, opacity: 1 }}
+      animate={{ width: 380, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
       transition={{ duration: 0.25, ease: "easeInOut" }}
       className="border-l bg-background flex flex-col shrink-0 overflow-hidden"
     >
-      <div className="p-3 border-b flex items-center justify-between">
+      <div className="p-3 border-b">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">AI Studio</span>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+            <X size={14} />
+          </Button>
+        </div>
         <Tabs value={aiTab} onValueChange={setAiTab} className="w-full">
-          <div className="flex items-center justify-between">
-            <TabsList className="h-8">
-              <TabsTrigger value="overseer" className="text-[10px] uppercase font-bold px-3 h-7">
-                <BrainCircuit size={12} className="mr-1.5" />
-                Overseer
+          <TabsList className="h-8 w-full grid" style={{ gridTemplateColumns: `repeat(${AI_TABS.length}, 1fr)` }}>
+            {AI_TABS.map(tab => (
+              <TabsTrigger key={tab.id} value={tab.id} className="text-[9px] uppercase font-bold px-1.5 h-7 gap-1">
+                {tab.icon}
+                <span className="hidden lg:inline">{tab.label}</span>
               </TabsTrigger>
-              <TabsTrigger value="chat" className="text-[10px] uppercase font-bold px-3 h-7">
-                <MessageSquare size={12} className="mr-1.5" />
-                Character
-              </TabsTrigger>
-            </TabsList>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-              <X size={14} />
-            </Button>
-          </div>
+            ))}
+          </TabsList>
         </Tabs>
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -93,6 +109,21 @@ const AIPanel = ({
                 onBack={() => setActiveCharChat(null)}
               />
             )}
+          </div>
+        )}
+        {aiTab === 'doctor' && (
+          <div className="p-4">
+            <ScriptDoctor blocks={blocks} />
+          </div>
+        )}
+        {aiTab === 'arcs' && (
+          <div className="p-4">
+            <CharacterArcTracker blocks={blocks} characters={uniqueCharacters} />
+          </div>
+        )}
+        {aiTab === 'tone' && (
+          <div className="p-4">
+            <ToneMoodAnalyzer blocks={blocks} />
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from 'lucide-react';
 
@@ -10,14 +10,7 @@ interface AuthGuardProps {
 }
 
 const AuthGuard = ({ children }: AuthGuardProps) => {
-  const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      navigate('/auth');
-    }
-  }, [isAuthenticated, loading, navigate]);
 
   if (loading) {
     return (
@@ -27,7 +20,9 @@ const AuthGuard = ({ children }: AuthGuardProps) => {
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
 
   return <>{children}</>;
 };
