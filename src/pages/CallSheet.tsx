@@ -98,6 +98,27 @@ const CallSheet = () => {
         return;
       }
 
+      try {
+        const { data, error } = await supabase
+          .from('call_sheets')
+          .select('*')
+          .eq('script_id', scriptId)
+          .maybeSingle();
+
+        if (!error && data) {
+          if (data.schedule) setSchedule(data.schedule);
+          if (data.cast_calls) setCastData(data.cast_calls);
+          if (data.weather) setWeather(data.weather);
+        }
+      } catch (err) {
+        console.error('Error fetching call sheet data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCallSheetData();
+  }, [scriptId]);
+
   const handlePrint = () => {
     window.print();
     showSuccess("Preparing call sheet for print...");
