@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,14 +38,8 @@ import { sanitizeInput } from "@/utils/security";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 
-const SCRIPTS = [
-  { id: "1", title: "The Neon Horizon" },
-  { id: "2", title: "Silent Echoes" },
-  { id: "3", title: "Midnight in Paris" },
-  { id: "5", title: "The Last Heist" }
-];
-
 const DEFAULT_CAST_DATA = [
+
   { id: 1, name: 'John Actor', role: 'KAI', call: '06:00' },
   { id: 2, name: 'Sarah Star', role: 'SARA', call: '08:30' },
   { id: 3, name: 'Mike Talent', role: 'VEO', call: '09:00' },
@@ -59,10 +54,12 @@ const DEFAULT_SCHEDULE = [
 ];
 
 const CallSheet = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const scriptId = searchParams.get('script');
+  const navigate = useNavigate();
 
-  const [selectedScript, setSelectedScript] = useState(SCRIPTS[0]);
+  const [availableScripts, setAvailableScripts] = useState<{ id: string; title: string }[]>([]);
+  const [selectedScript, setSelectedScript] = useState<{ id: string; title: string } | null>(null);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const [weather, setWeather] = useState({ temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
   const [schedule, setSchedule] = useState(DEFAULT_SCHEDULE);
@@ -70,44 +67,36 @@ const CallSheet = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchAvailableScripts = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('scripts')
+        .select('id, title')
+        .eq('user_id', user.id);
+
+      if (!error && data) {
+        setAvailableScripts(data);
+        if (scriptId) {
+          const selected = data.find(s => s.id === scriptId);
+          if (selected) setSelectedScript(selected);
+        } else if (data.length > 0) {
+          // If no scriptId in param, pick first one and update param
+          setSelectedScript(data[0]);
+          setSearchParams({ script: data[0].id });
+        }
+      }
+    };
+    fetchAvailableScripts();
+  }, [scriptId, setSearchParams]);
+
+  useEffect(() => {
     const fetchCallSheetData = async () => {
       if (!scriptId) {
         setLoading(false);
         return;
       }
-
-      const { data: scriptData, error: scriptError } = await supabase
-        .from('scripts')
-        .select('title')
-        .eq('id', scriptId)
-        .single();
-
-      if (scriptError) {
-        showError("Failed to load script title.");
-      } else if (scriptData) {
-        setSelectedScript({ id: scriptId, title: scriptData.title });
-      }
-
-      const { data: callSheetData, error: csError } = await supabase
-        .from('call_sheets')
-        .select('*')
-        .eq('script_id', scriptId)
-        .single();
-
-      if (csError || !callSheetData) {
-        setSchedule(DEFAULT_SCHEDULE);
-        setCastData(DEFAULT_CAST_DATA);
-      } else {
-        setSchedule(callSheetData.schedule || DEFAULT_SCHEDULE);
-        setCastData(callSheetData.cast_calls || DEFAULT_CAST_DATA);
-        setWeather(callSheetData.weather || { temp: '72°F', condition: 'Clear Skies', sunset: '18:30' });
-      }
-
-      setLoading(false);
-    };
-
-    fetchCallSheetData();
-  }, [scriptId]);
 
   const handlePrint = () => {
     window.print();
@@ -242,17 +231,23 @@ const CallSheet = () => {
                     <DropdownMenuContent align="start" className="w-56">
                       <DropdownMenuLabel>Select Project</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      {SCRIPTS.map(script => (
-                        <DropdownMenuItem
-                          key={script.id}
-                          onClick={() => {
-                            setSelectedScript(script);
-                            showSuccess(`Call sheet loaded for "${script.title}"`);
-                          }}
-                        >
-                          {script.title}
-                        </DropdownMenuItem>
-                      ))}
+                      {availableScripts.length === 0 ? (
+                        <DropdownMenuItem disabled>No scripts found</DropdownMenuItem>
+                      ) : (
+                        availableScripts.map(script => (
+                          <DropdownMenuItem
+                            key={script.id}
+                            onClick={() => {
+                              setSelectedScript(script);
+                              setSearchParams({ script: script.id });
+                              showSuccess(`Call sheet loaded for "${script.title}"`);
+                            }}
+                          >
+                            {script.title}
+                          </DropdownMenuItem>
+                        ))
+                      )}
+
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -281,9 +276,10 @@ const CallSheet = () => {
                 <div className="flex flex-col md:flex-row justify-between gap-6 border-b pb-6">
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <h2 className="text-4xl font-black tracking-tighter uppercase italic outline-none focus:bg-muted p-1 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => setSelectedScript({...selectedScript, title: sanitizeInput(e.currentTarget.innerText)})}>
-                        {selectedScript.title}
+                      <h2 className="text-4xl font-black tracking-tighter uppercase italic outline-none focus:bg-muted p-1 rounded" contentEditable suppressContentEditableWarning onBlur={(e) => selectedScript && setSelectedScript({...selectedScript, title: sanitizeInput(e.currentTarget.innerText)})}>
+                        {selectedScript?.title || "NEW PRODUCTION"}
                       </h2>
+
                       <p className="text-sm font-bold uppercase text-muted-foreground tracking-widest outline-none focus:bg-muted px-1" contentEditable suppressContentEditableWarning>
                         Production Day 1 of 1
                       </p>
