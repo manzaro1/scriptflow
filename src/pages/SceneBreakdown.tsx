@@ -27,6 +27,7 @@ import { showSuccess, showError } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeInput } from "@/utils/security";
 import { motion } from "framer-motion";
+import BudgetEstimator from "@/components/ai/BudgetEstimator";
 
 interface ScriptBlock {
   id: string;
@@ -198,6 +199,8 @@ const SceneBreakdown = () => {
               </Card>
 
               <div className="md:col-span-3 space-y-4">
+                <BudgetEstimator blocks={blocks} sceneCount={breakdown.length} castCount={totalCast} />
+
                 {breakdown.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">No scenes found in script.</div>
                 ) : (

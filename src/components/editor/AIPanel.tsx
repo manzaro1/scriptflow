@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { BrainCircuit, MessageSquare, Stethoscope, PenLine, Activity, Palette, X } from 'lucide-react';
+import { BrainCircuit, MessageSquare, Stethoscope, Activity, Palette, X, AlignLeft, Search, Users, FileText } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
@@ -10,6 +10,10 @@ import CharacterChat from "@/components/CharacterChat";
 import ScriptDoctor from "@/components/ai/ScriptDoctor";
 import CharacterArcTracker from "@/components/ai/CharacterArcTracker";
 import ToneMoodAnalyzer from "@/components/ai/ToneMoodAnalyzer";
+import ScriptFormatter from "@/components/ai/ScriptFormatter";
+import PlotHoleDetector from "@/components/ai/PlotHoleDetector";
+import CastingSuggestions from "@/components/ai/CastingSuggestions";
+import CoverageReport from "@/components/ai/CoverageReport";
 
 interface AITab {
   id: string;
@@ -17,12 +21,19 @@ interface AITab {
   icon: React.ReactNode;
 }
 
-const AI_TABS: AITab[] = [
+const AI_TABS_ROW1: AITab[] = [
   { id: 'overseer', label: 'Overseer', icon: <BrainCircuit size={12} /> },
   { id: 'chat', label: 'Character', icon: <MessageSquare size={12} /> },
   { id: 'doctor', label: 'Doctor', icon: <Stethoscope size={12} /> },
   { id: 'arcs', label: 'Arcs', icon: <Activity size={12} /> },
   { id: 'tone', label: 'Tone', icon: <Palette size={12} /> },
+];
+
+const AI_TABS_ROW2: AITab[] = [
+  { id: 'formatter', label: 'Format', icon: <AlignLeft size={12} /> },
+  { id: 'plotholes', label: 'Plot Holes', icon: <Search size={12} /> },
+  { id: 'casting', label: 'Casting', icon: <Users size={12} /> },
+  { id: 'coverage', label: 'Coverage', icon: <FileText size={12} /> },
 ];
 
 interface AIPanelProps {
@@ -34,6 +45,9 @@ interface AIPanelProps {
   activeCharChat: string | null;
   setActiveCharChat: (char: string | null) => void;
   blocks: any[];
+  scriptTitle?: string;
+  onFixBlock?: (blockIndex: number, newType: string, newContent: string) => void;
+  onFixAll?: (fixes: { blockIndex: number; newType: string; newContent: string }[]) => void;
 }
 
 const AIPanel = ({
@@ -44,7 +58,10 @@ const AIPanel = ({
   uniqueCharacters,
   activeCharChat,
   setActiveCharChat,
-  blocks
+  blocks,
+  scriptTitle,
+  onFixBlock,
+  onFixAll,
 }: AIPanelProps) => {
   if (!isOpen) return null;
 
@@ -64,14 +81,24 @@ const AIPanel = ({
           </Button>
         </div>
         <Tabs value={aiTab} onValueChange={setAiTab} className="w-full">
-          <TabsList className="h-8 w-full grid" style={{ gridTemplateColumns: `repeat(${AI_TABS.length}, 1fr)` }}>
-            {AI_TABS.map(tab => (
-              <TabsTrigger key={tab.id} value={tab.id} className="text-[9px] uppercase font-bold px-1.5 h-7 gap-1">
-                {tab.icon}
-                <span className="hidden lg:inline">{tab.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <div className="space-y-1">
+            <TabsList className="h-8 w-full grid" style={{ gridTemplateColumns: `repeat(${AI_TABS_ROW1.length}, 1fr)` }}>
+              {AI_TABS_ROW1.map(tab => (
+                <TabsTrigger key={tab.id} value={tab.id} className="text-[9px] uppercase font-bold px-1.5 h-7 gap-1">
+                  {tab.icon}
+                  <span className="hidden lg:inline">{tab.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <TabsList className="h-8 w-full grid" style={{ gridTemplateColumns: `repeat(${AI_TABS_ROW2.length}, 1fr)` }}>
+              {AI_TABS_ROW2.map(tab => (
+                <TabsTrigger key={tab.id} value={tab.id} className="text-[9px] uppercase font-bold px-1.5 h-7 gap-1">
+                  {tab.icon}
+                  <span className="hidden lg:inline">{tab.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
         </Tabs>
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -124,6 +151,26 @@ const AIPanel = ({
         {aiTab === 'tone' && (
           <div className="p-4">
             <ToneMoodAnalyzer blocks={blocks} />
+          </div>
+        )}
+        {aiTab === 'formatter' && (
+          <div className="p-4">
+            <ScriptFormatter blocks={blocks} onFixBlock={onFixBlock} onFixAll={onFixAll} />
+          </div>
+        )}
+        {aiTab === 'plotholes' && (
+          <div className="p-4">
+            <PlotHoleDetector blocks={blocks} />
+          </div>
+        )}
+        {aiTab === 'casting' && (
+          <div className="p-4">
+            <CastingSuggestions blocks={blocks} characters={uniqueCharacters} />
+          </div>
+        )}
+        {aiTab === 'coverage' && (
+          <div className="p-4">
+            <CoverageReport blocks={blocks} scriptTitle={scriptTitle} />
           </div>
         )}
       </div>

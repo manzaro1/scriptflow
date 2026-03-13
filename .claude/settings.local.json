@@ -7,7 +7,8 @@
       "Bash(node:*)",
       "Bash(node_modules/typescript/bin/tsc:*)",
       "Bash(do echo:*)",
-      "Bash(pnpm run:*)"
+      "Bash(pnpm run:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

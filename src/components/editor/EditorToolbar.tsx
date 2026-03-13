@@ -1,20 +1,28 @@
 "use client";
 
 import React from 'react';
-import { 
-  ArrowLeft, 
-  Save, 
-  Sparkles, 
-  BrainCircuit, 
-  Share2, 
-  Edit2, 
-  Files, 
-  Loader2, 
+import {
+  ArrowLeft,
+  Save,
+  Sparkles,
+  BrainCircuit,
+  Share2,
+  Edit2,
+  Files,
+  Loader2,
   Lock,
-  Wand2
+  Wand2,
+  Zap,
+  ChevronDown,
+  FileText,
+  RefreshCw,
+  MessageSquare,
+  Globe
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import CollaboratorStack from "@/components/CollaboratorStack";
 import ShareScriptModal from "@/components/ShareScriptModal";
 import { cn } from "@/lib/utils";
@@ -35,6 +43,12 @@ interface EditorToolbarProps {
   onOverseerClick: () => void;
   showOverseer: boolean;
   user: any;
+  autocompleteEnabled: boolean;
+  onAutocompleteToggle: (enabled: boolean) => void;
+  onLoglineClick: () => void;
+  onRewriterClick: () => void;
+  onPolishClick: () => void;
+  onTranslateClick: () => void;
 }
 
 const EditorToolbar = ({
@@ -52,7 +66,13 @@ const EditorToolbar = ({
   onGenerateSceneClick,
   onOverseerClick,
   showOverseer,
-  user
+  user,
+  autocompleteEnabled,
+  onAutocompleteToggle,
+  onLoglineClick,
+  onRewriterClick,
+  onPolishClick,
+  onTranslateClick,
 }: EditorToolbarProps) => {
   return (
     <header className="h-14 border-b bg-background flex items-center px-4 justify-between shrink-0 z-10 shadow-sm">
@@ -110,6 +130,49 @@ const EditorToolbar = ({
             <Wand2 size={16} />
             <span className="hidden sm:inline">Generate Scene</span>
           </Button>
+        )}
+
+        {/* AI Tools Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-8 bg-gradient-to-r from-violet-500/10 to-pink-500/10 border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 hover:from-violet-500/20 hover:to-pink-500/20"
+            >
+              <Wand2 size={14} />
+              <span className="hidden sm:inline">AI Tools</span>
+              <ChevronDown size={12} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={onLoglineClick} className="gap-2 cursor-pointer">
+              <FileText size={14} /> Logline & Synopsis
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onRewriterClick} className="gap-2 cursor-pointer">
+              <RefreshCw size={14} /> Scene Rewriter
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onPolishClick} className="gap-2 cursor-pointer">
+              <MessageSquare size={14} /> Dialogue Polish
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onTranslateClick} className="gap-2 cursor-pointer">
+              <Globe size={14} /> Translate Script
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Autocomplete Toggle */}
+        {!isReadOnly && (
+          <div className="hidden lg:flex items-center gap-1.5 px-2 h-8 bg-muted rounded-md border">
+            <Zap size={12} className={autocompleteEnabled ? 'text-amber-500' : 'text-muted-foreground'} />
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Auto</span>
+            <Switch
+              checked={autocompleteEnabled}
+              onCheckedChange={onAutocompleteToggle}
+              className="scale-75"
+            />
+          </div>
         )}
 
         <Button
