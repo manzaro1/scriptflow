@@ -3,12 +3,12 @@ const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
-  entry: "./src/index.tsx",
+  entry: "./src/index.ghpages.tsx",
   output: {
     filename: "app.js",
     path: path.resolve(__dirname, "dist"),
     clean: true,
-    publicPath: "/scriptflow/",
+    publicPath: "./",
   },
   resolve: {
     extensions: [".tsx", ".ts", ".js", ".jsx"],
