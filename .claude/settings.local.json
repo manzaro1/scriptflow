@@ -8,7 +8,11 @@
       "Bash(node_modules/typescript/bin/tsc:*)",
       "Bash(do echo:*)",
       "Bash(pnpm run:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebFetch(domain:www.canva.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebSearch"
     ]
   }
 }
