@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { ScriptBlock } from "../types";
+import type { ScriptBlock, ScriptMode } from "../types";
 import { generateScene } from "../utils/ai";
 import { extractCharacters } from "../utils/script-helpers";
 
@@ -26,12 +26,16 @@ interface SceneGeneratorProps {
   apiKey?: string;
   existingBlocks: ScriptBlock[];
   onInsert: (blocks: ScriptBlock[]) => void;
+  addToast?: (text: string, type: "success" | "error" | "info") => void;
+  mode?: ScriptMode;
 }
 
 export default function SceneGenerator({
   apiKey,
   existingBlocks,
   onInsert,
+  addToast,
+  mode = "screenplay",
 }: SceneGeneratorProps) {
   const [premise, setPremise] = useState("");
   const [tone, setTone] = useState("Dramatic");
@@ -58,11 +62,14 @@ export default function SceneGenerator({
         tone,
         sceneLength,
         existingChars,
-        apiKey
+        apiKey,
+        mode
       );
       setGeneratedBlocks(blocks);
+      addToast?.("Scene generated!", "success");
     } catch (err: any) {
       setError(err.message || "Generation failed");
+      addToast?.(err.message || "Generation failed", "error");
     } finally {
       setGenerating(false);
     }

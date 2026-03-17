@@ -1,4 +1,5 @@
-import type { ElementType, ScriptBlock } from "../types";
+import type { ElementType, ScriptBlock, ScriptMode } from "../types";
+import { getModeConfig } from "./mode-config";
 
 export function createBlock(
   type: ElementType = "action",
@@ -11,37 +12,34 @@ export function createBlock(
   };
 }
 
-export function defaultBlocks(): ScriptBlock[] {
-  return [createBlock("slugline", "EXT. NEW SCENE - DAY")];
+export function defaultBlocks(mode: ScriptMode = "screenplay"): ScriptBlock[] {
+  const config = getModeConfig(mode);
+  return [createBlock(config.defaultBlockType, config.defaultBlockContent)];
 }
 
-const TYPE_CYCLE: ElementType[] = [
-  "action",
-  "character",
-  "parenthetical",
-  "dialogue",
-  "slugline",
-  "transition",
-];
-
-export function nextBlockType(current: ElementType): ElementType {
-  const idx = TYPE_CYCLE.indexOf(current);
-  return TYPE_CYCLE[(idx + 1) % TYPE_CYCLE.length];
+export function nextBlockType(
+  current: ElementType,
+  mode: ScriptMode = "screenplay"
+): ElementType {
+  const cycle = getModeConfig(mode).typeCycle;
+  const idx = cycle.indexOf(current);
+  if (idx === -1) return cycle[0];
+  return cycle[(idx + 1) % cycle.length];
 }
 
 export function autoDetectType(
   content: string,
-  currentType: ElementType
+  currentType: ElementType,
+  mode: ScriptMode = "screenplay"
 ): ElementType {
-  const upper = content.toUpperCase().trim();
-  if (upper.startsWith("INT.") || upper.startsWith("EXT.")) return "slugline";
-  if (upper.match(/^(CUT TO:|FADE (IN|OUT).|SMASH CUT TO:)$/))
-    return "transition";
-  return currentType;
+  return getModeConfig(mode).autoDetect(content, currentType);
 }
 
-export function shouldUpperCase(type: ElementType): boolean {
-  return type === "slugline" || type === "character" || type === "transition";
+export function shouldUpperCase(
+  type: ElementType,
+  mode: ScriptMode = "screenplay"
+): boolean {
+  return getModeConfig(mode).shouldUpperCase(type);
 }
 
 export function extractCharacters(blocks: ScriptBlock[]): string[] {
@@ -69,6 +67,25 @@ export function formatBlockForExport(block: ScriptBlock): string {
       return `               (${content})`;
     case "transition":
       return `\n                                        ${content}\n`;
+    // YouTube / Podcast / TikTok types - simple formatting
+    case "hook":
+      return `\n[HOOK] ${content}`;
+    case "intro":
+      return `\n[INTRO] ${content}`;
+    case "body":
+      return `\n${content}`;
+    case "cta":
+      return `\n[CTA] ${content}`;
+    case "segment":
+      return `\n--- ${content.toUpperCase()} ---`;
+    case "adread":
+      return `\n[AD] ${content}`;
+    case "outro":
+      return `\n[OUTRO] ${content}`;
+    case "visualcue":
+      return `\n(Visual: ${content})`;
+    case "voiceover":
+      return `\n  VO: ${content}`;
     case "action":
     default:
       return `\n${content}`;
@@ -77,4 +94,35 @@ export function formatBlockForExport(block: ScriptBlock): string {
 
 export function blocksToPlainText(blocks: ScriptBlock[]): string {
   return blocks.map(formatBlockForExport).join("\n");
+}
+
+// Scene grouping for storyboard and drag-reorder
+
+export interface SceneGroup {
+  sluglineIndex: number;
+  blocks: ScriptBlock[];
+}
+
+export function groupBlocksIntoScenes(blocks: ScriptBlock[]): SceneGroup[] {
+  const groups: SceneGroup[] = [];
+  let current: SceneGroup | null = null;
+
+  blocks.forEach((block, i) => {
+    if (block.type === "slugline" || block.type === "hook" || block.type === "intro" || block.type === "segment") {
+      if (current) groups.push(current);
+      current = { sluglineIndex: i, blocks: [block] };
+    } else if (current) {
+      current.blocks.push(block);
+    } else {
+      // Blocks before first scene heading
+      current = { sluglineIndex: -1, blocks: [block] };
+    }
+  });
+
+  if (current) groups.push(current);
+  return groups;
+}
+
+export function flattenSceneGroups(groups: SceneGroup[]): ScriptBlock[] {
+  return groups.flatMap((g) => g.blocks);
 }

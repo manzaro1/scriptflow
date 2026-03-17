@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import type { ElementType, ScriptBlock } from "../types";
+import type { ElementType, ScriptBlock, ScriptMode } from "../types";
 import {
   createBlock,
-  defaultBlocks,
   nextBlockType,
   autoDetectType,
   shouldUpperCase,
@@ -14,6 +13,9 @@ interface ScriptEditorProps {
   onBlocksChange: (blocks: ScriptBlock[]) => void;
   focusedBlockId: string | null;
   onFocusedBlockChange: (id: string | null) => void;
+  mode?: ScriptMode;
+  searchTerm?: string;
+  highlightedBlockId?: string | null;
 }
 
 export default function ScriptEditor({
@@ -21,6 +23,9 @@ export default function ScriptEditor({
   onBlocksChange,
   focusedBlockId,
   onFocusedBlockChange,
+  mode = "screenplay",
+  searchTerm,
+  highlightedBlockId,
 }: ScriptEditorProps) {
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const blocksRef = useRef<ScriptBlock[]>(blocks);
@@ -38,6 +43,16 @@ export default function ScriptEditor({
     }
   }, [pendingFocusId, blocks]);
 
+  // Scroll to highlighted block
+  useEffect(() => {
+    if (highlightedBlockId && blockRefs.current[highlightedBlockId]) {
+      blockRefs.current[highlightedBlockId]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [highlightedBlockId]);
+
   const syncBlockFromDOM = (id: string) => {
     const el = blockRefs.current[id];
     if (el) {
@@ -54,7 +69,7 @@ export default function ScriptEditor({
       // Tab: cycle block type
       if (e.key === "Tab") {
         e.preventDefault();
-        const newType = nextBlockType(block.type);
+        const newType = nextBlockType(block.type, mode);
         const updated = blocksRef.current.map((b, i) =>
           i === index ? { ...b, type: newType } : b
         );
@@ -87,7 +102,7 @@ export default function ScriptEditor({
         if (targetId) setPendingFocusId(targetId);
       }
     },
-    [onBlocksChange]
+    [onBlocksChange, mode]
   );
 
   const handleBlur = useCallback(
@@ -97,9 +112,9 @@ export default function ScriptEditor({
       if (!el) return;
 
       let content = el.innerText;
-      let type = autoDetectType(content, block.type);
+      let type = autoDetectType(content, block.type, mode);
 
-      if (shouldUpperCase(type)) {
+      if (shouldUpperCase(type, mode)) {
         content = content.toUpperCase();
         el.innerText = content;
       }
@@ -110,7 +125,7 @@ export default function ScriptEditor({
         )
       );
     },
-    [onBlocksChange]
+    [onBlocksChange, mode]
   );
 
   const handleFocus = useCallback(
@@ -154,6 +169,9 @@ export default function ScriptEditor({
           block={block}
           index={index}
           isFocused={focusedBlockId === block.id}
+          mode={mode}
+          searchTerm={searchTerm}
+          highlightedBlockId={highlightedBlockId}
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}

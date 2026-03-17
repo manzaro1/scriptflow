@@ -23,9 +23,10 @@ const TOOLS: { key: AITool; label: string; description: string }[] = [
 interface AIToolsPanelProps {
   blocks: ScriptBlock[];
   apiKey?: string;
+  addToast?: (text: string, type: "success" | "error" | "info") => void;
 }
 
-export default function AIToolsPanel({ blocks, apiKey }: AIToolsPanelProps) {
+export default function AIToolsPanel({ blocks, apiKey, addToast }: AIToolsPanelProps) {
   const [activeTool, setActiveTool] = useState<AITool | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AIAnalysisResult | null>(null);
@@ -45,8 +46,10 @@ export default function AIToolsPanel({ blocks, apiKey }: AIToolsPanelProps) {
     try {
       const analysis = await analyzeScript(blocks, tool, apiKey);
       setResult(analysis);
+      addToast?.("Analysis complete!", "success");
     } catch (err: any) {
       setError(err.message || "Analysis failed");
+      addToast?.(err.message || "Analysis failed", "error");
     } finally {
       setLoading(false);
     }

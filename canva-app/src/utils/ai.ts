@@ -1,4 +1,5 @@
-import type { ScriptBlock, AITool, AIAnalysisResult } from "../types";
+import type { ScriptBlock, ScriptMode, AITool, AIAnalysisResult } from "../types";
+import { getModeConfig } from "./mode-config";
 
 const POLLINATIONS_URL = "https://text.pollinations.ai/openai";
 
@@ -66,8 +67,10 @@ export async function generateScene(
   tone: string,
   length: string,
   characters: string[],
-  apiKey?: string
+  apiKey?: string,
+  mode: ScriptMode = "screenplay"
 ): Promise<ScriptBlock[]> {
+  const config = getModeConfig(mode);
   const lengthGuide =
     length === "short" ? "5-10" : length === "medium" ? "10-20" : "20-35";
   const charInstruction =
@@ -75,17 +78,18 @@ export async function generateScene(
       ? `Feature these characters: ${characters.join(", ")}.`
       : "";
 
-  const systemPrompt = `You are an expert screenwriter. Generate a properly formatted screenplay scene.
+  const allowedTypes = config.elementTypes.map((t) => `"${t}"`).join(", ");
+
+  const systemPrompt = `${config.aiPromptPrefix}
 Tone: ${tone}
 ${charInstruction}
 Target length: ${lengthGuide} blocks.
 
 Return a JSON array of blocks where each has:
 - "id": unique string (use random short alphanumeric)
-- "type": one of "slugline", "action", "character", "dialogue", "parenthetical", "transition"
+- "type": one of ${allowedTypes}
 - "content": the text content
 
-Follow professional screenplay formatting. Start with a slugline.
 Return ONLY valid JSON array, no markdown fences.`;
 
   const text = await callAI(systemPrompt, premise, 0.8, apiKey);
@@ -195,4 +199,20 @@ Return ONLY valid JSON array, no markdown fences.`;
   }
 
   return parsed as ScriptBlock[];
+}
+
+/**
+ * Generate a visual description for a storyboard frame from scene blocks.
+ */
+export async function generateVisualDescription(
+  sceneBlocks: ScriptBlock[],
+  apiKey?: string
+): Promise<string> {
+  const sceneText = sceneBlocks
+    .map((b) => `[${b.type.toUpperCase()}] ${b.content}`)
+    .join("\n");
+
+  const systemPrompt = `You are a storyboard artist. Given a screenplay scene, describe the key visual for a single storyboard frame. Include: setting, character positions, lighting, mood, and camera angle suggestion. Return just the visual description in 2-3 sentences, no JSON.`;
+
+  return callAI(systemPrompt, sceneText, 0.7, apiKey);
 }

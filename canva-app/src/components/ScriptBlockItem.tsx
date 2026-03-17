@@ -1,38 +1,14 @@
 import React, { useRef, useEffect } from "react";
-import type { ElementType, ScriptBlock } from "../types";
-import { shouldUpperCase } from "../utils/script-helpers";
-
-const TYPE_LABELS: Record<ElementType, string> = {
-  slugline: "SCN",
-  action: "ACT",
-  character: "CHAR",
-  dialogue: "DLG",
-  parenthetical: "PAR",
-  transition: "TRNS",
-};
-
-const TYPE_COLORS: Record<ElementType, string> = {
-  slugline: "#d97706",
-  action: "#6b7280",
-  character: "#7c3aed",
-  dialogue: "#2563eb",
-  parenthetical: "#a78bfa",
-  transition: "#f59e0b",
-};
-
-const TYPE_STYLES: Record<ElementType, React.CSSProperties> = {
-  slugline: { textTransform: "uppercase", fontWeight: 700 },
-  action: {},
-  character: { textTransform: "uppercase", fontWeight: 700, textAlign: "center" },
-  dialogue: { paddingLeft: 24, paddingRight: 16 },
-  parenthetical: { fontStyle: "italic", paddingLeft: 32, paddingRight: 32 },
-  transition: { textTransform: "uppercase", fontWeight: 700, textAlign: "right" },
-};
+import type { ScriptBlock, ScriptMode } from "../types";
+import { getModeConfig } from "../utils/mode-config";
 
 interface ScriptBlockItemProps {
   block: ScriptBlock;
   index: number;
   isFocused: boolean;
+  mode?: ScriptMode;
+  searchTerm?: string;
+  highlightedBlockId?: string | null;
   onFocus: (index: number) => void;
   onBlur: (index: number) => void;
   onKeyDown: (e: React.KeyboardEvent, index: number) => void;
@@ -44,6 +20,9 @@ export default function ScriptBlockItem({
   block,
   index,
   isFocused,
+  mode = "screenplay",
+  searchTerm,
+  highlightedBlockId,
   onFocus,
   onBlur,
   onKeyDown,
@@ -52,6 +31,11 @@ export default function ScriptBlockItem({
 }: ScriptBlockItemProps) {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const initialized = useRef(false);
+  const config = getModeConfig(mode);
+
+  const typeColor = config.typeColors[block.type] || "#6b7280";
+  const typeLabel = config.typeLabels[block.type] || block.type.substring(0, 4).toUpperCase();
+  const typeStyle = config.typeStyles[block.type] || {};
 
   useEffect(() => {
     if (innerRef.current && !initialized.current) {
@@ -62,13 +46,22 @@ export default function ScriptBlockItem({
 
   // Update content when block type changes (uppercase enforcement)
   useEffect(() => {
-    if (innerRef.current && shouldUpperCase(block.type)) {
+    if (innerRef.current && config.shouldUpperCase(block.type)) {
       const text = innerRef.current.innerText;
       if (text !== text.toUpperCase()) {
         innerRef.current.innerText = text.toUpperCase();
       }
     }
-  }, [block.type]);
+  }, [block.type, config]);
+
+  // Search highlight
+  const isSearchMatch =
+    searchTerm && block.content.toLowerCase().includes(searchTerm.toLowerCase());
+  const isCurrentHighlight = highlightedBlockId === block.id;
+
+  let bgColor = isFocused ? "#f8f9fa" : "transparent";
+  if (isCurrentHighlight) bgColor = "#fde68a";
+  else if (isSearchMatch) bgColor = "#fef3c7";
 
   return (
     <div
@@ -77,7 +70,9 @@ export default function ScriptBlockItem({
         alignItems: "flex-start",
         gap: 6,
         padding: "2px 0",
-        borderLeft: isFocused ? `2px solid ${TYPE_COLORS[block.type]}` : "2px solid transparent",
+        borderLeft: isFocused
+          ? `2px solid ${typeColor}`
+          : "2px solid transparent",
         paddingLeft: 4,
       }}
     >
@@ -86,8 +81,8 @@ export default function ScriptBlockItem({
           fontSize: 9,
           fontWeight: 700,
           textTransform: "uppercase",
-          color: TYPE_COLORS[block.type],
-          backgroundColor: `${TYPE_COLORS[block.type]}18`,
+          color: typeColor,
+          backgroundColor: `${typeColor}18`,
           padding: "2px 4px",
           borderRadius: 3,
           minWidth: 30,
@@ -97,7 +92,7 @@ export default function ScriptBlockItem({
           userSelect: "none",
         }}
       >
-        {TYPE_LABELS[block.type]}
+        {typeLabel}
       </span>
       <div
         ref={(el) => {
@@ -121,8 +116,8 @@ export default function ScriptBlockItem({
           minHeight: 20,
           padding: "1px 4px",
           borderRadius: 2,
-          backgroundColor: isFocused ? "#f8f9fa" : "transparent",
-          ...TYPE_STYLES[block.type],
+          backgroundColor: bgColor,
+          ...typeStyle,
         }}
       />
     </div>

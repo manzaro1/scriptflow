@@ -4,7 +4,21 @@ export type ElementType =
   | "dialogue"
   | "slugline"
   | "parenthetical"
-  | "transition";
+  | "transition"
+  // YouTube
+  | "hook"
+  | "intro"
+  | "body"
+  | "cta"
+  // Podcast
+  | "segment"
+  | "adread"
+  | "outro"
+  // TikTok/Reel
+  | "visualcue"
+  | "voiceover";
+
+export type ScriptMode = "screenplay" | "youtube" | "podcast" | "tiktok";
 
 export interface ScriptBlock {
   id: string;
@@ -21,4 +35,13 @@ export interface AIAnalysisResult {
     description: string;
     blockIndex?: number;
   }>;
+}
+
+export interface StoryboardFrame {
+  sceneIndex: number;
+  slugline: string;
+  description: string;
+  visualPrompt: string;
+  blocks: ScriptBlock[];
+  status: "pending" | "generating" | "ready" | "inserted";
 }

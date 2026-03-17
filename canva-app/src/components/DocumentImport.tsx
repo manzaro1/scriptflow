@@ -5,6 +5,7 @@ import { parseDocumentToBlocks } from "../utils/ai";
 interface DocumentImportProps {
   apiKey?: string;
   onImport: (blocks: ScriptBlock[]) => void;
+  addToast?: (text: string, type: "success" | "error" | "info") => void;
 }
 
 async function extractTextFromDocx(file: File): Promise<string> {
@@ -41,6 +42,7 @@ async function extractTextFromTxt(file: File): Promise<string> {
 export default function DocumentImport({
   apiKey,
   onImport,
+  addToast,
 }: DocumentImportProps) {
   const [status, setStatus] = useState<"idle" | "reading" | "parsing" | "preview">("idle");
   const [rawText, setRawText] = useState("");
@@ -89,8 +91,10 @@ export default function DocumentImport({
       );
       setParsedBlocks(blocks);
       setStatus("preview");
+      addToast?.("Document parsed successfully!", "success");
     } catch (err: any) {
       setError(err.message || "Failed to process document");
+      addToast?.(err.message || "Failed to process document", "error");
       setStatus("idle");
     }
   };
