@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { ScriptBlock, AITool, AIAnalysisResult } from "../types";
-import { analyzeScript } from "../utils/ai";
+import { analyzeScript, type AIProvider } from "../utils/ai";
 
 const TOOLS: { key: AITool; label: string; description: string }[] = [
   {
@@ -23,10 +23,16 @@ const TOOLS: { key: AITool; label: string; description: string }[] = [
 interface AIToolsPanelProps {
   blocks: ScriptBlock[];
   apiKey?: string;
+  provider?: AIProvider;
   addToast?: (text: string, type: "success" | "error" | "info") => void;
 }
 
-export default function AIToolsPanel({ blocks, apiKey, addToast }: AIToolsPanelProps) {
+export default function AIToolsPanel({
+  blocks,
+  apiKey,
+  provider = "pollinations",
+  addToast,
+}: AIToolsPanelProps) {
   const [activeTool, setActiveTool] = useState<AITool | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AIAnalysisResult | null>(null);
@@ -44,7 +50,7 @@ export default function AIToolsPanel({ blocks, apiKey, addToast }: AIToolsPanelP
     setResult(null);
 
     try {
-      const analysis = await analyzeScript(blocks, tool, apiKey);
+      const analysis = await analyzeScript(blocks, tool, apiKey, provider);
       setResult(analysis);
       addToast?.("Analysis complete!", "success");
     } catch (err: any) {

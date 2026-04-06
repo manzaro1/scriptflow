@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { ScriptBlock, ScriptMode } from "../types";
-import { generateScene } from "../utils/ai";
+import { generateScene, type AIProvider } from "../utils/ai";
 import { extractCharacters } from "../utils/script-helpers";
 
 const TONES = [
@@ -24,6 +24,7 @@ const SCENE_LENGTHS = [
 
 interface SceneGeneratorProps {
   apiKey?: string;
+  provider?: AIProvider;
   existingBlocks: ScriptBlock[];
   onInsert: (blocks: ScriptBlock[]) => void;
   addToast?: (text: string, type: "success" | "error" | "info") => void;
@@ -32,6 +33,7 @@ interface SceneGeneratorProps {
 
 export default function SceneGenerator({
   apiKey,
+  provider = "pollinations",
   existingBlocks,
   onInsert,
   addToast,
@@ -63,7 +65,8 @@ export default function SceneGenerator({
         sceneLength,
         existingChars,
         apiKey,
-        mode
+        mode,
+        provider
       );
       setGeneratedBlocks(blocks);
       addToast?.("Scene generated!", "success");

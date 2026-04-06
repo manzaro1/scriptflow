@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
   DialogTrigger
 } from "@/components/ui/dialog";
@@ -15,8 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Share2, Mail, Link, Copy, Check, Trash2, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
-import { sanitizeInput } from "@/utils/security";
+import { api } from "@/lib/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ShareScriptModalProps {
@@ -26,26 +25,27 @@ interface ShareScriptModalProps {
   children?: React.ReactNode;
 }
 
-const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: ShareScriptModalProps) => {
+const ShareScriptModal = ({ scriptId, scriptTitle, children }: ShareScriptModalProps) => {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'viewer' | 'editor' | 'admin'>('viewer');
+  const [role, setRole] = useState<'viewer' | 'editor'>('viewer');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [collaborators, setCollaborators] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
   const shareLink = `${window.location.origin}/editor?id=${scriptId}`;
 
   const fetchCollaborators = async () => {
-    const { data, error } = await supabase
-      .from('script_collaborators')
-      .select('*')
-      .eq('script_id', scriptId);
-    
-    if (!error && data) setCollaborators(data);
+    try {
+      const data = await api.getScriptCollaborators(scriptId);
+      setCollaborators(data);
+    } catch {
+      // ignore — may not have permission
+    }
   };
 
   useEffect(() => {
-    if (scriptId) fetchCollaborators();
-  }, [scriptId]);
+    if (open && scriptId) fetchCollaborators();
+  }, [open, scriptId]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,53 +53,23 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
     setLoading(true);
 
     try {
-      const sanitizedEmail = sanitizeInput(email.toLowerCase());
-      const { error } = await supabase
-        .from('script_collaborators')
-        .insert({
-          script_id: scriptId,
-          email: sanitizedEmail,
-          role: role
-        });
-
-      if (error) throw error;
-
-      // Send invitation email via Resend edge function
-      const scriptUrl = `${window.location.origin}/editor?id=${encodeURIComponent(scriptId)}`;
-      supabase.functions.invoke('send-invite-email', {
-        body: {
-          to: sanitizedEmail,
-          inviterName: sanitizeInput(inviterName || 'A ScriptFlow user'),
-          scriptTitle: sanitizeInput(scriptTitle || 'Untitled Script'),
-          role,
-          scriptUrl,
-        },
-      }).catch(() => {
-        // Email delivery is best-effort; the DB invite is the source of truth
-      });
-
+      await api.addCollaborator(scriptId, email.toLowerCase(), role);
       showSuccess(`Invitation sent to ${email}`);
       setEmail('');
       fetchCollaborators();
     } catch (err: any) {
-      console.error("[ShareScriptModal]", err);
-      showError("Failed to send invitation. Please try again.");
+      showError(err.message || "Failed to send invitation.");
     } finally {
       setLoading(false);
     }
   };
 
-  const removeCollaborator = async (id: string) => {
+  const removeCollaborator = async (collabId: string) => {
     try {
-      const { error } = await supabase
-        .from('script_collaborators')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.removeCollaborator(scriptId, collabId);
       showSuccess("Access revoked");
       fetchCollaborators();
-    } catch (err: any) {
+    } catch {
       showError("Failed to revoke access");
     }
   };
@@ -112,7 +82,7 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {children || (
           <Button variant="outline" size="sm" className="gap-2">
@@ -125,7 +95,7 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
         <DialogHeader>
           <DialogTitle>Share Script</DialogTitle>
           <DialogDescription>
-            Invite others to collaborate or share a secure link.
+            Invite others to collaborate on "{scriptTitle || 'this script'}".
           </DialogDescription>
         </DialogHeader>
 
@@ -140,16 +110,16 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
               Link
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="email" className="space-y-4 py-4">
             <form onSubmit={handleInvite} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Invite by Email</Label>
                 <div className="flex gap-2">
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="collaborator@example.com" 
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="collaborator@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="flex-1"
@@ -164,11 +134,11 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full" disabled={loading || !email}>
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Invite'}
                 </Button>
               </div>
-              
+
               {collaborators.length > 0 && (
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground uppercase font-bold">Collaborators</Label>
@@ -177,13 +147,18 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
                       <div key={collab.id} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded-lg">
                         <div className="flex flex-col">
                           <span className="font-medium truncate max-w-[150px]">{collab.email}</span>
-                          <span className="text-[10px] uppercase text-muted-foreground">{collab.role}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase text-muted-foreground">{collab.role}</span>
+                            <span className={`text-[10px] uppercase font-bold ${
+                              collab.status === 'active' ? 'text-green-600' : 'text-yellow-600'
+                            }`}>{collab.status}</span>
+                          </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-7 w-7 text-destructive"
-                          onClick={() => removeCollaborator(collab.id)}
+                          onClick={() => removeCollaborator(collab.id.toString())}
                         >
                           <Trash2 size={14} />
                         </Button>
@@ -199,9 +174,9 @@ const ShareScriptModal = ({ scriptId, scriptTitle, inviterName, children }: Shar
             <div className="space-y-2">
               <Label htmlFor="link">Shareable Link</Label>
               <div className="flex gap-2">
-                <Input 
-                  id="link" 
-                  readOnly 
+                <Input
+                  id="link"
+                  readOnly
                   value={shareLink}
                   className="bg-muted text-xs"
                 />

@@ -18,10 +18,26 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
+    // Ignore DOM errors caused by browser extensions (Google Translate, Grammarly, etc.)
+    // that inject/remove nodes React doesn't know about
+    if (
+      error.message?.includes('removeChild') ||
+      error.message?.includes('insertBefore') ||
+      error.message?.includes('The node to be removed is not a child')
+    ) {
+      return { hasError: false, error: null };
+    }
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    if (
+      error.message?.includes('removeChild') ||
+      error.message?.includes('insertBefore') ||
+      error.message?.includes('The node to be removed is not a child')
+    ) {
+      return; // Silently ignore browser extension DOM conflicts
+    }
     console.error('[ErrorBoundary]', error, errorInfo);
   }
 

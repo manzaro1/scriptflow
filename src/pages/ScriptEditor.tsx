@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { showSuccess, showLoading, dismissToast, showError } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { sanitizeInput } from "@/utils/security";
 import RenameScriptModal from "@/components/RenameScriptModal";
 import StoryboardGenerator from "@/components/StoryboardGenerator";
@@ -88,17 +88,19 @@ const ScriptEditor = () => {
   useEffect(() => {
     const fetchScript = async () => {
       if (!scriptId || !authUser) return;
-      const { data, error } = await supabase.from('scripts').select('*').eq('id', scriptId).single();
-      if (error) { showError("Failed to load script."); } 
-      else if (data) {
+      try {
+        const data = await api.getScript(scriptId);
         setScriptTitle(data.title);
-        setScriptAuthor(data.author);
+        setScriptAuthor(data.author || '');
+        // Check ownership for read-only status
         if (data.user_id !== authUser.id) {
-          const { data: collab } = await supabase.from('script_collaborators').select('role').eq('script_id', scriptId).eq('user_id', authUser.id).single();
-          if (!collab || collab.role === 'viewer') setIsReadOnly(true);
+          setIsReadOnly(true);
         }
-        const rawContent = Array.isArray(data.content) && data.content.length > 0 ? data.content : [{ id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' }];
+        const parsedContent = JSON.parse(data.content);
+        const rawContent = Array.isArray(parsedContent) && parsedContent.length > 0 ? parsedContent : [{ id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' }];
         setBlocks(rawContent.map((b: any) => ({ ...b, content: sanitizeInput(b.content) })));
+      } catch {
+        showError("Failed to load script.");
       }
       setLoading(false);
     };
@@ -121,10 +123,16 @@ const ScriptEditor = () => {
     setSaving(true);
     const toastId = showLoading("Saving...");
     const updated = blocksRef.current.map(b => ({ ...b, content: blockRefs.current[b.id]?.innerText || b.content }));
-    const { error } = await supabase.from('scripts').update({ content: updated, title: sanitizeInput(scriptTitle), author: sanitizeInput(scriptAuthor), updated_at: new Date().toISOString() }).eq('id', scriptId);
-    dismissToast(toastId);
-    setSaving(false);
-    if (!error) { setHasUnsaved(false); showSuccess("Saved"); }
+    try {
+      await api.updateScript(scriptId, { content: updated, title: sanitizeInput(scriptTitle), author: sanitizeInput(scriptAuthor) });
+      setHasUnsaved(false);
+      showSuccess("Saved");
+    } catch {
+      showError("Failed to save");
+    } finally {
+      dismissToast(toastId);
+      setSaving(false);
+    }
   };
 
   const syncBlockFromDOM = (id: string) => {
@@ -175,7 +183,6 @@ const ScriptEditor = () => {
 
   const handleInsertScene = useCallback((newBlocks: ScriptBlock[]) => {
     const idx = focusedBlockId ? blocks.findIndex(b => b.id === focusedBlockId) : blocks.length - 1;
-    // Find end of current scene (next slugline)
     let insertAt = idx + 1;
     for (let i = idx + 1; i < blocks.length; i++) {
       if (blocks[i].type === 'slugline') { insertAt = i; break; }
@@ -189,7 +196,6 @@ const ScriptEditor = () => {
 
   const handleApplyTranslation = useCallback((newBlocks: ScriptBlock[]) => {
     setBlocks(newBlocks);
-    // Reset DOM content
     newBlocks.forEach(b => {
       const el = blockRefs.current[b.id];
       if (el) { el.innerText = b.content; el.dataset.initialized = 'true'; }
@@ -250,7 +256,6 @@ const ScriptEditor = () => {
     setHasUnsaved(true);
   };
 
-  // Auto-trigger autocomplete on typing pause when enabled
   const autocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleInputWithAutocomplete = useCallback(() => {
     setHasUnsaved(true);
@@ -266,15 +271,18 @@ const ScriptEditor = () => {
   const sceneSlugs = useMemo(() => blocks.filter(b => b.type === 'slugline'), [blocks]);
   const uniqueCharacters = useMemo(() => [...new Set(blocks.filter(b => b.type === 'character').map(b => b.content))], [blocks]);
 
-  // Auto-save with debounce
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!hasUnsaved || !scriptId || isReadOnly) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(async () => {
       const updated = blocksRef.current.map(b => ({ ...b, content: blockRefs.current[b.id]?.innerText || b.content }));
-      const { error } = await supabase.from('scripts').update({ content: updated, title: sanitizeInput(scriptTitle), author: sanitizeInput(scriptAuthor), updated_at: new Date().toISOString() }).eq('id', scriptId);
-      if (!error) setHasUnsaved(false);
+      try {
+        await api.updateScript(scriptId, { content: updated, title: sanitizeInput(scriptTitle), author: sanitizeInput(scriptAuthor) });
+        setHasUnsaved(false);
+      } catch {
+        // Silent fail on auto-save
+      }
     }, 3000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [hasUnsaved, scriptId, isReadOnly, scriptTitle, scriptAuthor]);

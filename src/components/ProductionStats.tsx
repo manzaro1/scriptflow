@@ -15,7 +15,7 @@ interface ProductionStatsProps {
 const ProductionStats = ({
   totalScripts = 0,
   totalFinished = 0,
-  totalCollaborators = 5,
+  totalCollaborators = 0,
   totalPages = 0
 }: ProductionStatsProps) => {
   const stats = [

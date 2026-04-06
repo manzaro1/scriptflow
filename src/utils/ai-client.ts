@@ -6,6 +6,7 @@
 
 import { loadAIConfig, AIProvider } from './ai-providers';
 import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
@@ -45,7 +46,7 @@ function getErrorCode(status: number): AIErrorCode {
 export async function aiChat(options: AIRequestOptions): Promise<AIResponse> {
   const config = loadAIConfig();
 
-  if (!config.apiKey && config.provider !== 'custom') {
+  if (config.provider !== 'server' && !config.apiKey && config.provider !== 'custom') {
     return { text: '', error: 'NO_API_KEY' };
   }
   if (config.provider === 'custom' && !config.baseUrl) {
@@ -54,6 +55,8 @@ export async function aiChat(options: AIRequestOptions): Promise<AIResponse> {
 
   try {
     switch (config.provider) {
+      case 'server':
+        return await callServer(options);
       case 'gemini':
         return await callGemini(config.apiKey, config.model, options);
       case 'openai':
@@ -104,6 +107,20 @@ export async function callEdgeFunction<T = any>(
 }
 
 // --- Provider implementations ---
+
+async function callServer(opts: AIRequestOptions): Promise<AIResponse> {
+  try {
+    const data = await api.aiChat({
+      messages: opts.messages,
+      max_tokens: opts.maxTokens,
+      temperature: opts.temperature,
+    });
+    const content = (data.choices?.[0]?.message?.content || '').replace(/^\n+/, '');
+    return { text: content, error: null };
+  } catch (err: any) {
+    throw new AIError(err.message || 'Server AI error', 'UNKNOWN');
+  }
+}
 
 async function callGemini(apiKey: string, model: string, opts: AIRequestOptions): Promise<AIResponse> {
   const contents = opts.messages

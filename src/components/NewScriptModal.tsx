@@ -24,7 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles, FileText, Edit3, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { sanitizeInput } from "@/utils/security";
 import ScriptUpload from "./ScriptUpload";
 
@@ -33,6 +33,8 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
   const [isOpen, setIsOpen] = useState(false);
   const [creationMode, setCreationMode] = useState<'scratch' | 'upload'>('scratch');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [extractedBlocks, setExtractedBlocks] = useState<any[]>([]);
+  const [extractedTitle, setExtractedTitle] = useState('');
   const [characters, setCharacters] = useState<any[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   
@@ -69,45 +71,42 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
 
   const handleCreate = async () => {
     setIsCreating(true);
-    
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        showError("You must be logged in to create a script.");
-        setIsCreating(false);
-        return;
+      let content: any[];
+      let scriptTitle: string;
+
+      if (creationMode === 'upload' && extractedBlocks.length > 0) {
+        // Use the AI-extracted blocks from the uploaded file
+        content = extractedBlocks;
+        scriptTitle = sanitizeInput(title) || sanitizeInput(extractedTitle) || 'Untitled Screenplay';
+      } else {
+        // Fresh script with placeholder content
+        content = [
+          { id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' },
+          { id: '2', type: 'action', content: 'The story begins here...' }
+        ];
+        scriptTitle = sanitizeInput(title) || 'Untitled Screenplay';
       }
 
-      // Initial script content
-      const initialContent = [
-        { id: '1', type: 'slugline', content: 'EXT. NEW SCENE - DAY' },
-        { id: '2', type: 'action', content: 'The story begins here...' }
-      ];
+      await api.createScript({
+        title: scriptTitle,
+        author: sanitizeInput(author) || 'Anonymous',
+        content,
+      });
 
-      const { error } = await supabase
-        .from('scripts')
-        .insert({
-          user_id: user.id,
-          title: sanitizeInput(title) || 'Untitled Screenplay',
-          author: sanitizeInput(author) || 'Anonymous',
-          genre: sanitizeInput(genre),
-          content: initialContent,
-          status: 'Draft'
-        });
+      showSuccess(creationMode === 'upload'
+        ? `Script imported from "${uploadedFile?.name}" with ${content.length} blocks.`
+        : `Script "${scriptTitle}" created successfully.`);
 
-      if (error) throw error;
-
-      showSuccess(creationMode === 'upload' 
-        ? `Script imported from "${uploadedFile?.name}" successfully.`
-        : `Script "${title || 'Untitled'}" created successfully.`);
-      
       if (onComplete) onComplete();
-      
+
       setIsOpen(false);
       setStep(1);
       setCharacters([]);
       setUploadedFile(null);
+      setExtractedBlocks([]);
+      setExtractedTitle('');
       setTitle('');
     } catch (err: any) {
       console.error("[NewScriptModal]", err);
@@ -215,11 +214,28 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
               </TabsContent>
 
               <TabsContent value="upload" className="space-y-4 pt-0">
-                <ScriptUpload onFileSelect={setUploadedFile} />
+                <ScriptUpload
+                  onFileSelect={setUploadedFile}
+                  onExtracted={(blocks, extractedName) => {
+                    setExtractedBlocks(blocks);
+                    setExtractedTitle(extractedName);
+                    if (!title && extractedName) setTitle(extractedName);
+                  }}
+                />
                 <div className="grid gap-2 mt-4">
                   <Label htmlFor="upload-title">Title (Optional)</Label>
-                  <Input id="upload-title" placeholder={uploadedFile ? uploadedFile.name.replace(/\.[^/.]+$/, "") : "Document Title"} />
+                  <Input
+                    id="upload-title"
+                    placeholder={extractedTitle || "Document Title"}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
                 </div>
+                {extractedBlocks.length > 0 && (
+                  <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                    Extracted {extractedBlocks.length} screenplay blocks ready for import.
+                  </p>
+                )}
               </TabsContent>
             </Tabs>
           </div>
@@ -299,10 +315,13 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
           {step === 1 ? (
             <>
               <div />
-              <Button 
-                onClick={() => setStep(2)} 
+              <Button
+                onClick={() => setStep(2)}
                 className="gap-2"
-                disabled={creationMode === 'scratch' && (!title || !author)}
+                disabled={
+                  (creationMode === 'scratch' && (!title || !author)) ||
+                  (creationMode === 'upload' && !uploadedFile)
+                }
               >
                 Next: Add Characters
                 <ArrowRight size={16} />

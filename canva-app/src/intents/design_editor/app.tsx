@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import type { ScriptBlock, ScriptMode } from "../../types";
 import { defaultBlocks, groupBlocksIntoScenes, flattenSceneGroups } from "../../utils/script-helpers";
 import { getUserTier, setUserTier, type Tier } from "../../utils/pricing";
+import { type AIProvider } from "../../utils/ai";
 import useHistory from "../../hooks/useHistory";
 import ScriptEditor from "../../components/ScriptEditor";
 import SceneGenerator from "../../components/SceneGenerator";
@@ -17,8 +18,9 @@ import ExportPanel from "../../components/ExportPanel";
 import CharacterTracker from "../../components/CharacterTracker";
 import ScriptStats from "../../components/ScriptStats";
 import FeatureGate from "../../components/FeatureGate";
+import SettingsPanel from "../../components/SettingsPanel";
 
-type Tab = "write" | "generate" | "ai" | "import" | "insert" | "storyboard";
+type Tab = "write" | "generate" | "ai" | "import" | "insert" | "storyboard" | "settings";
 
 const TABS: { key: Tab; label: string; proFeature?: string }[] = [
   { key: "write", label: "Write" },
@@ -27,6 +29,7 @@ const TABS: { key: Tab; label: string; proFeature?: string }[] = [
   { key: "storyboard", label: "Storyboard", proFeature: "storyboard" },
   { key: "import", label: "Import" },
   { key: "insert", label: "Insert" },
+  { key: "settings", label: "Settings" },
 ];
 
 const MODES: { key: ScriptMode; label: string; proFeature?: string }[] = [
@@ -42,6 +45,8 @@ export function App() {
   const { blocks, setBlocks, undo, redo, canUndo, canRedo } = useHistory(defaultBlocks(mode));
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [tier, setTier] = useState<Tier>(getUserTier);
+  const [apiProvider, setApiProvider] = useState<AIProvider>("pollinations");
+  const [apiKey, setApiKey] = useState<string>("");
 
   // Toast system
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -374,7 +379,8 @@ export function App() {
 
         {activeTab === "generate" && (
           <SceneGenerator
-            apiKey={undefined}
+            apiKey={apiKey}
+            provider={apiProvider}
             existingBlocks={blocks}
             onInsert={handleInsertGeneratedBlocks}
             addToast={addToast}
@@ -384,7 +390,7 @@ export function App() {
 
         {activeTab === "ai" && (
           <FeatureGate featureId="aiTools" tier={tier} onUpgrade={handleUpgrade}>
-            <AIToolsPanel blocks={blocks} apiKey={undefined} addToast={addToast} />
+            <AIToolsPanel blocks={blocks} apiKey={apiKey} provider={apiProvider} addToast={addToast} />
           </FeatureGate>
         )}
 
@@ -392,7 +398,8 @@ export function App() {
           <FeatureGate featureId="storyboard" tier={tier} onUpgrade={handleUpgrade}>
             <StoryboardPanel
               blocks={blocks}
-              apiKey={undefined}
+              apiKey={apiKey}
+              provider={apiProvider}
               addToast={addToast}
             />
           </FeatureGate>
@@ -400,7 +407,8 @@ export function App() {
 
         {activeTab === "import" && (
           <DocumentImport
-            apiKey={undefined}
+            apiKey={apiKey}
+            provider={apiProvider}
             onImport={handleImportBlocks}
             addToast={addToast}
           />
@@ -414,6 +422,15 @@ export function App() {
               <ExportPanel blocks={blocks} />
             </FeatureGate>
           </div>
+        )}
+
+        {activeTab === "settings" && (
+          <SettingsPanel
+            apiProvider={apiProvider}
+            apiKey={apiKey}
+            onProviderChange={setApiProvider}
+            onApiKeyChange={setApiKey}
+          />
         )}
       </div>
 

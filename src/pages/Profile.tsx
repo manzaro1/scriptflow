@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   CreditCard,
   User,
@@ -43,23 +43,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { showSuccess, showError } from "@/utils/toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import { sanitizeInput } from "@/utils/security";
-import { saveGeminiKey, removeGeminiKey, testGeminiKey } from "@/utils/ai";
-import { AI_PROVIDERS, AIProvider, loadAIConfig, saveAIConfig, testAPIKey } from "@/utils/ai-providers";
+import { AI_PROVIDERS, AIProvider, loadAIConfig, saveAIConfig } from "@/utils/ai-providers";
+import { testAPIKey } from "@/utils/ai-providers";
 import { useSearchParams } from "react-router-dom";
+import { api } from "@/lib/api";
 
 const Profile = () => {
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('tab') || 'account';
+  const { user: currentUser } = useAuth();
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [inviteScriptId, setInviteScriptId] = useState('');
+  const [scripts, setScripts] = useState<any[]>([]);
 
   // AI key state
   const [aiKeyInput, setAiKeyInput] = useState('');
-  const [aiProvider, setAiProvider] = useState<AIProvider>('gemini');
+  const [aiProvider, setAiProvider] = useState<AIProvider>('server');
   const [aiModel, setAiModel] = useState('');
   const [customBaseUrl, setCustomBaseUrl] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -68,30 +71,70 @@ const Profile = () => {
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [loadingKey, setLoadingKey] = useState(true);
 
+  // Team members — real data from API
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
+
   useEffect(() => {
     const fetchKeyStatus = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUser(user);
-        // Load AI config from localStorage
+      if (currentUser) {
         const aiConfig = loadAIConfig();
         setAiProvider(aiConfig.provider);
         setAiKeyInput(aiConfig.apiKey);
         setAiModel(aiConfig.model);
         setCustomBaseUrl(aiConfig.baseUrl || '');
-        if (aiConfig.apiKey || aiConfig.baseUrl) {
+        if (aiConfig.apiKey || aiConfig.baseUrl || aiConfig.provider === 'server') {
           setHasKey(true);
         }
       }
       setLoadingKey(false);
     };
     fetchKeyStatus();
+  }, [currentUser]);
+
+  const fetchTeamMembers = useCallback(async () => {
+    setLoadingTeam(true);
+    try {
+      const data = await api.getAllCollaborators();
+      setTeamMembers(data);
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingTeam(false);
+    }
   }, []);
+
+  const fetchScripts = useCallback(async () => {
+    try {
+      const data = await api.getScripts();
+      setScripts(data || []);
+      if (data?.length > 0 && !inviteScriptId) {
+        setInviteScriptId(data[0].id);
+      }
+    } catch {
+      // silently fail
+    }
+  }, [inviteScriptId]);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchTeamMembers();
+      fetchScripts();
+    }
+  }, [currentUser, fetchTeamMembers, fetchScripts]);
 
   const handleSaveKey = async () => {
     const providerInfo = AI_PROVIDERS.find(p => p.id === aiProvider);
     const model = aiModel || providerInfo?.defaultModel || '';
-    
+
+    if (aiProvider === 'server') {
+      saveAIConfig({ provider: 'server', apiKey: '', model: '' });
+      setHasKey(true);
+      showSuccess('Using built-in ScriptFlow AI');
+      return;
+    }
+
     if (aiProvider === 'custom') {
       if (!customBaseUrl.trim()) {
         showError("Please enter a base URL for custom API");
@@ -101,41 +144,37 @@ const Profile = () => {
       showError("Please enter an API key");
       return;
     }
-    
-    // Save to localStorage
+
     saveAIConfig({
       provider: aiProvider,
       apiKey: aiKeyInput.trim(),
       model: model,
       baseUrl: aiProvider === 'custom' ? customBaseUrl.trim() : undefined,
     });
-    
+
     setHasKey(true);
     setTestResult(null);
     showSuccess(`API key saved for ${providerInfo?.name}`);
   };
 
   const handleRemoveKey = async () => {
-    const success = await removeGeminiKey();
-    if (success) {
-      setAiKeyInput('');
-      setHasKey(false);
-      setTestResult(null);
-      showSuccess("API key removed from your profile");
-    } else {
-      showError("Failed to remove API key");
-    }
+    saveAIConfig({ provider: 'server', apiKey: '', model: '' });
+    setAiKeyInput('');
+    setAiProvider('server');
+    setHasKey(false);
+    setTestResult(null);
+    showSuccess("Switched back to built-in ScriptFlow AI");
   };
 
   const handleTestKey = async () => {
     const key = aiKeyInput.trim();
-    if (!key) {
+    if (!key && aiProvider !== 'server') {
       showError("Enter a key first");
       return;
     }
     setTestingKey(true);
     setTestResult(null);
-    const ok = await testGeminiKey(key);
+    const ok = await testAPIKey(aiProvider, key, customBaseUrl || undefined);
     setTestingKey(false);
     setTestResult(ok ? 'success' : 'error');
     if (ok) {
@@ -145,40 +184,47 @@ const Profile = () => {
     }
   };
 
-  const [teamMembers, setTeamMembers] = useState([
-    { id: 1, name: 'Alex Rivers', email: 'alex@example.com', role: 'Owner', status: 'Active', avatar: 'AR' },
-    { id: 2, name: 'John Director', email: 'john@production.com', role: 'Admin', status: 'Active', avatar: 'JD' },
-    { id: 3, name: 'Sarah Editor', email: 'sarah@cuts.com', role: 'Editor', status: 'Active', avatar: 'SE' },
-    { id: 4, name: 'Mike Intern', email: 'mike@intern.com', role: 'Viewer', status: 'Pending', avatar: 'MI' },
-  ]);
-
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail) return;
+    if (!inviteEmail || !inviteScriptId) {
+      showError("Please select a script and enter an email");
+      return;
+    }
+    setInviteLoading(true);
 
-    const newMember = {
-      id: Date.now(),
-      name: inviteEmail.split('@')[0],
-      email: inviteEmail,
-      role: inviteRole.charAt(0).toUpperCase() + inviteRole.slice(1),
-      status: 'Pending',
-      avatar: inviteEmail.substring(0, 2).toUpperCase()
-    };
-
-    setTeamMembers(prev => [...prev, newMember]);
-    showSuccess(`Team invitation sent to ${sanitizeInput(inviteEmail)}`);
-    setInviteEmail('');
+    try {
+      await api.addCollaborator(inviteScriptId, sanitizeInput(inviteEmail.toLowerCase()), inviteRole as 'editor' | 'viewer');
+      showSuccess(`Invitation sent to ${sanitizeInput(inviteEmail)}`);
+      setInviteEmail('');
+      fetchTeamMembers();
+    } catch (err: any) {
+      showError(err.message || "Failed to send invitation");
+    } finally {
+      setInviteLoading(false);
+    }
   };
 
-  const handleRemoveMember = (id: number, name: string) => {
-    setTeamMembers(prev => prev.filter(m => m.id !== id));
-    showSuccess(`${name} has been removed from the team.`);
+  const handleRemoveMember = async (collab: any) => {
+    try {
+      await api.removeCollaborator(collab.script_id, collab.id.toString());
+      showSuccess(`${collab.email} has been removed.`);
+      fetchTeamMembers();
+    } catch {
+      showError("Failed to remove collaborator");
+    }
   };
 
-  const handleRevokeInvite = (id: number, email: string) => {
-    setTeamMembers(prev => prev.filter(m => m.id !== id));
-    showSuccess(`Invitation for ${email} has been revoked.`);
+  const handleChangeRole = async (collab: any, newRole: string) => {
+    try {
+      await api.updateCollaboratorRole(collab.script_id, collab.id.toString(), newRole);
+      showSuccess(`Role updated to ${newRole}`);
+      fetchTeamMembers();
+    } catch {
+      showError("Failed to update role");
+    }
   };
+
+  const userInitials = currentUser?.email?.substring(0, 2).toUpperCase() || '??';
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -216,56 +262,64 @@ const Profile = () => {
                 </TabsTrigger>
               </TabsList>
 
+              {/* ==================== ACCOUNT ==================== */}
               <TabsContent value="account" className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>Profile Information</CardTitle>
-                    <CardDescription>Update your photo and personal details here.</CardDescription>
+                    <CardDescription>Your account details.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex items-center gap-6">
                       <Avatar className="h-20 w-20">
-                        <AvatarImage src={currentUser?.user_metadata?.avatar_url || "https://github.com/shadcn.png"} />
-                        <AvatarFallback>{currentUser?.email?.substring(0,2).toUpperCase() || "AR"}</AvatarFallback>
+                        <AvatarFallback className="text-xl font-bold">{userInitials}</AvatarFallback>
                       </Avatar>
-                      <div className="space-y-2">
-                        <Button variant="outline" size="sm">Change Avatar</Button>
-                        <p className="text-xs text-muted-foreground">JPG, GIF or PNG. Max size of 800K</p>
+                      <div>
+                        <p className="text-lg font-semibold">{currentUser?.email || 'User'}</p>
+                        <p className="text-sm text-muted-foreground">Member since {new Date().getFullYear()}</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" defaultValue={currentUser?.user_metadata?.first_name || "Alex Rivers"} />
-                      </div>
-                      <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" defaultValue={currentUser?.email || "alex@example.com"} readOnly className="bg-muted" />
+                        <Input id="email" defaultValue={currentUser?.email || ""} readOnly className="bg-muted" />
                       </div>
                     </div>
                   </CardContent>
-                  <CardFooter className="border-t px-6 py-4">
-                    <Button onClick={() => showSuccess("Profile updated")}>Save Changes</Button>
-                  </CardFooter>
                 </Card>
               </TabsContent>
 
+              {/* ==================== TEAMS ==================== */}
               <TabsContent value="teams" className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>Invite Collaborators</CardTitle>
-                    <CardDescription>Invite your production team to collaborate on your scripts.</CardDescription>
+                    <CardDescription>Invite people to collaborate on a script.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-4">
+                      <div className="space-y-2">
+                        <Label>Script</Label>
+                        <Select value={inviteScriptId} onValueChange={setInviteScriptId}>
+                          <SelectTrigger className="w-full sm:w-[200px]">
+                            <SelectValue placeholder="Select a script" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {scripts.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="flex-1 space-y-2">
                         <Label htmlFor="team-email">Email Address</Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            id="team-email" 
-                            className="pl-10" 
-                            placeholder="colleague@production.com" 
+                          <Input
+                            id="team-email"
+                            type="email"
+                            className="pl-10"
+                            placeholder="colleague@production.com"
                             value={inviteEmail}
                             onChange={(e) => setInviteEmail(e.target.value)}
                           />
@@ -278,15 +332,14 @@ const Profile = () => {
                             <SelectValue placeholder="Select role" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="editor">Editor</SelectItem>
                             <SelectItem value="viewer">Viewer</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="flex items-end">
-                        <Button type="submit" className="w-full sm:w-auto gap-2">
-                          <UserPlus size={16} />
+                        <Button type="submit" className="w-full sm:w-auto gap-2" disabled={inviteLoading || !inviteEmail || !inviteScriptId}>
+                          {inviteLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
                           Send Invite
                         </Button>
                       </div>
@@ -296,51 +349,68 @@ const Profile = () => {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Active Team Members</CardTitle>
-                    <CardDescription>Manage roles and permissions for your current team.</CardDescription>
+                    <CardTitle>Team Members</CardTitle>
+                    <CardDescription>
+                      {teamMembers.length === 0
+                        ? "No collaborators yet. Invite people to start collaborating!"
+                        : `${teamMembers.length} collaborator${teamMembers.length !== 1 ? 's' : ''} across your scripts.`}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="rounded-md border overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50 border-b">
-                          <tr>
-                            <th className="text-left p-3 font-medium">Member</th>
-                            <th className="text-left p-3 font-medium hidden md:table-cell">Role</th>
-                            <th className="text-left p-3 font-medium hidden sm:table-cell">Status</th>
-                            <th className="text-right p-3 font-medium">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {teamMembers.map((member) => (
-                            <tr key={member.id} className="group hover:bg-muted/20 transition-colors">
-                              <td className="p-3">
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{member.avatar}</AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{member.name}</span>
-                                    <span className="text-xs text-muted-foreground">{member.email}</span>
+                    {loadingTeam ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : teamMembers.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                        <p className="text-sm">No team members yet.</p>
+                        <p className="text-xs">Use the form above to invite collaborators to your scripts.</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-md border overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50 border-b">
+                            <tr>
+                              <th className="text-left p-3 font-medium">Member</th>
+                              <th className="text-left p-3 font-medium hidden lg:table-cell">Script</th>
+                              <th className="text-left p-3 font-medium hidden md:table-cell">Role</th>
+                              <th className="text-left p-3 font-medium hidden sm:table-cell">Status</th>
+                              <th className="text-right p-3 font-medium">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {teamMembers.map((member) => (
+                              <tr key={member.id} className="group hover:bg-muted/20 transition-colors">
+                                <td className="p-3">
+                                  <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                        {member.email?.substring(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium truncate max-w-[180px]">{member.email}</span>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="p-3 hidden md:table-cell">
-                                <div className="flex items-center gap-1.5">
-                                  {(member.role === 'Owner' || member.role === 'Admin') && (
-                                    <ShieldCheck size={14} className="text-primary" />
-                                  )}
-                                  <span>{member.role}</span>
-                                </div>
-                              </td>
-                              <td className="p-3 hidden sm:table-cell">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                  member.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                }`}>
-                                  {member.status}
-                                </span>
-                              </td>
-                              <td className="p-3 text-right">
-                                {member.role !== 'Owner' ? (
+                                </td>
+                                <td className="p-3 hidden lg:table-cell">
+                                  <span className="text-xs text-muted-foreground truncate max-w-[150px] block">
+                                    {member.script_title || 'Unknown'}
+                                  </span>
+                                </td>
+                                <td className="p-3 hidden md:table-cell">
+                                  <div className="flex items-center gap-1.5">
+                                    {member.role === 'editor' && <ShieldCheck size={14} className="text-primary" />}
+                                    <span className="capitalize">{member.role}</span>
+                                  </div>
+                                </td>
+                                <td className="p-3 hidden sm:table-cell">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    member.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                  }`}>
+                                    {member.status}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right">
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -348,46 +418,34 @@ const Profile = () => {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                      {member.status === 'Pending' ? (
-                                        <>
-                                          <DropdownMenuItem onClick={() => showSuccess("Invite resent!")}>
-                                            Resend Invitation
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem 
-                                            className="text-destructive focus:text-destructive" 
-                                            onClick={() => handleRevokeInvite(member.id, member.email)}
-                                          >
-                                            <UserMinus size={14} className="mr-2" />
-                                            Revoke Invitation
-                                          </DropdownMenuItem>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <DropdownMenuItem>Change Permissions</DropdownMenuItem>
-                                          <DropdownMenuItem 
-                                            className="text-destructive focus:text-destructive" 
-                                            onClick={() => handleRemoveMember(member.id, member.name)}
-                                          >
-                                            <Trash2 size={14} className="mr-2" />
-                                            Remove from Team
-                                          </DropdownMenuItem>
-                                        </>
-                                      )}
+                                      <DropdownMenuItem onClick={() => handleChangeRole(member, member.role === 'editor' ? 'viewer' : 'editor')}>
+                                        <ShieldCheck size={14} className="mr-2" />
+                                        Make {member.role === 'editor' ? 'Viewer' : 'Editor'}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="text-destructive focus:text-destructive"
+                                        onClick={() => handleRemoveMember(member)}
+                                      >
+                                        {member.status === 'pending' ? (
+                                          <><UserMinus size={14} className="mr-2" /> Revoke Invitation</>
+                                        ) : (
+                                          <><Trash2 size={14} className="mr-2" /> Remove from Team</>
+                                        )}
+                                      </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
-                                ) : (
-                                  <span className="text-[10px] text-muted-foreground px-2 uppercase font-bold">Admin</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
 
+              {/* ==================== BILLING ==================== */}
               <TabsContent value="billing" className="space-y-6">
                 <Card>
                   <CardHeader>
@@ -417,7 +475,8 @@ const Profile = () => {
                   </CardFooter>
                 </Card>
               </TabsContent>
-              
+
+              {/* ==================== SECURITY ==================== */}
               <TabsContent value="security">
                 <Card>
                   <CardHeader>
@@ -440,6 +499,7 @@ const Profile = () => {
                 </Card>
               </TabsContent>
 
+              {/* ==================== AI ==================== */}
               <TabsContent value="ai" className="space-y-6">
                 <Card>
                   <CardHeader>
@@ -449,54 +509,83 @@ const Profile = () => {
                       </div>
                       <div>
                         <CardTitle>AI Integration</CardTitle>
-                        <CardDescription>Connect your Google Gemini API key to enable AI-powered screenwriting features.</CardDescription>
+                        <CardDescription>Configure your AI provider. ScriptFlow AI works out of the box — or bring your own key.</CardDescription>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-2">
-                      <Label htmlFor="gemini-key">Gemini API Key</Label>
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="gemini-key"
-                            className="pl-10 pr-10 font-mono text-sm"
-                            type={showKey ? "text" : "password"}
-                            placeholder="AIzaSy..."
-                            value={aiKeyInput}
-                            onChange={(e) => { setAiKeyInput(e.target.value); setTestResult(null); }}
-                            disabled={loadingKey}
-                          />
-                          <button
-                            type="button"
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={() => setShowKey(!showKey)}
-                          >
-                            {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                        <Button variant="outline" onClick={handleTestKey} disabled={testingKey || !aiKeyInput.trim() || loadingKey}>
-                          {testingKey ? <Loader2 size={16} className="animate-spin" /> : "Test"}
-                        </Button>
-                      </div>
-                      {testResult === 'success' && (
-                        <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                          <CheckCircle2 size={12} /> Key is valid and working
-                        </p>
-                      )}
-                      {testResult === 'error' && (
-                        <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                          <XCircle size={12} /> Key is invalid or expired
-                        </p>
-                      )}
+                      <Label>AI Provider</Label>
+                      <Select value={aiProvider} onValueChange={(v: AIProvider) => { setAiProvider(v); setTestResult(null); }}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AI_PROVIDERS.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} {!p.requiresApiKey && p.id === 'server' ? '(Built-in)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <p className="text-xs text-muted-foreground">
-                        Your key is stored securely in your profile and never exposed to other users. Get a free key from{' '}
-                        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">
-                          Google AI Studio
-                        </a>.
+                        {AI_PROVIDERS.find(p => p.id === aiProvider)?.description}
                       </p>
                     </div>
+
+                    {aiProvider !== 'server' && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="ai-key">API Key</Label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                id="ai-key"
+                                className="pl-10 pr-10 font-mono text-sm"
+                                type={showKey ? "text" : "password"}
+                                placeholder="Enter API key..."
+                                value={aiKeyInput}
+                                onChange={(e) => { setAiKeyInput(e.target.value); setTestResult(null); }}
+                                disabled={loadingKey}
+                              />
+                              <button
+                                type="button"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() => setShowKey(!showKey)}
+                              >
+                                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                              </button>
+                            </div>
+                            <Button variant="outline" onClick={handleTestKey} disabled={testingKey || !aiKeyInput.trim() || loadingKey}>
+                              {testingKey ? <Loader2 size={16} className="animate-spin" /> : "Test"}
+                            </Button>
+                          </div>
+                          {testResult === 'success' && (
+                            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                              <CheckCircle2 size={12} /> Key is valid and working
+                            </p>
+                          )}
+                          {testResult === 'error' && (
+                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                              <XCircle size={12} /> Key is invalid or expired
+                            </p>
+                          )}
+                        </div>
+
+                        {aiProvider === 'custom' && (
+                          <div className="space-y-2">
+                            <Label htmlFor="base-url">Base URL</Label>
+                            <Input
+                              id="base-url"
+                              placeholder="https://api.example.com/v1"
+                              value={customBaseUrl}
+                              onChange={(e) => setCustomBaseUrl(e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
 
                     <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
                       <p className="text-sm font-semibold">AI features powered by your key:</p>
@@ -510,13 +599,13 @@ const Profile = () => {
                     </div>
                   </CardContent>
                   <CardFooter className="border-t px-6 py-4 flex justify-between">
-                    {hasKey && (
+                    {aiProvider !== 'server' && hasKey && (
                       <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={handleRemoveKey}>
-                        Remove Key
+                        Reset to Built-in
                       </Button>
                     )}
-                    <Button onClick={handleSaveKey} disabled={!aiKeyInput.trim() || loadingKey} className="ml-auto">
-                      {hasKey ? 'Update Key' : 'Save Key'}
+                    <Button onClick={handleSaveKey} disabled={loadingKey} className="ml-auto">
+                      Save Settings
                     </Button>
                   </CardFooter>
                 </Card>

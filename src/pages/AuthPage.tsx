@@ -1,13 +1,11 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Film } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { Button } from '@/components/ui/button';
 
 const AuthPage = () => {
   const navigate = useNavigate();
@@ -18,17 +16,6 @@ const AuthPage = () => {
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
-
-  // Explicitly determine the redirect URL to prevent localhost fallbacks in production
-  const getRedirectUrl = () => {
-    if (typeof window === 'undefined') return undefined;
-    
-    // Use the current origin, which will be the Vercel URL when deployed
-    const origin = window.location.origin;
-    return `${origin}/dashboard`;
-  };
-
-  const redirectTo = getRedirectUrl();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
@@ -45,25 +32,10 @@ const AuthPage = () => {
             Sign in to access your script library and AI tools.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ 
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: 'hsl(var(--primary))',
-                    brandAccent: 'hsl(var(--primary))',
-                  },
-                },
-              },
-            }}
-            theme="light"
-            providers={['github', 'google']}
-            redirectTo={redirectTo}
-            onlyThirdPartyProviders={false}
-          />
+        <CardContent className="space-y-4">
+          <Button asChild className="w-full">
+            <Link to="/login">Sign In / Create Account</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

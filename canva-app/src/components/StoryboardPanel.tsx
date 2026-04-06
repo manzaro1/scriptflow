@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from "react";
 import type { ScriptBlock, StoryboardFrame } from "../types";
 import { groupBlocksIntoScenes } from "../utils/script-helpers";
-import { generateVisualDescription } from "../utils/ai";
+import { generateVisualDescription, type AIProvider } from "../utils/ai";
 
 interface StoryboardPanelProps {
   blocks: ScriptBlock[];
   apiKey?: string;
+  provider?: AIProvider;
   addToast: (text: string, type: "success" | "error" | "info") => void;
 }
 
 export default function StoryboardPanel({
   blocks,
   apiKey,
+  provider = "pollinations",
   addToast,
 }: StoryboardPanelProps) {
   const scenes = useMemo(() => groupBlocksIntoScenes(blocks), [blocks]);
@@ -38,7 +40,7 @@ export default function StoryboardPanel({
       prev.map((f, i) => (i === idx ? { ...f, status: "generating" } : f))
     );
     try {
-      const visual = await generateVisualDescription(frames[idx].blocks, apiKey);
+      const visual = await generateVisualDescription(frames[idx].blocks, apiKey, provider);
       setFrames((prev) =>
         prev.map((f, i) =>
           i === idx ? { ...f, visualPrompt: visual, status: "ready" } : f

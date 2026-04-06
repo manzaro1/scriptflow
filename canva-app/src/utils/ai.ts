@@ -2,16 +2,20 @@ import type { ScriptBlock, ScriptMode, AITool, AIAnalysisResult } from "../types
 import { getModeConfig } from "./mode-config";
 
 const POLLINATIONS_URL = "https://text.pollinations.ai/openai";
+const CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions";
+
+export type AIProvider = "pollinations" | "cerebras";
 
 /**
- * Call Pollinations OpenAI-compatible chat completions endpoint.
- * Works without a key (free tier) or with a Pollinations API key for higher limits.
+ * Call an OpenAI-compatible chat completions endpoint.
+ * Supports Pollinations (free, default model) and Cerebras (k2-think reasoning model).
  */
 async function callAI(
   systemPrompt: string,
   userPrompt: string,
   temperature = 0.7,
-  apiKey?: string
+  apiKey?: string,
+  provider: AIProvider = "pollinations"
 ): Promise<string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -20,11 +24,22 @@ async function callAI(
     headers["Authorization"] = `Bearer ${apiKey}`;
   }
 
-  const res = await fetch(POLLINATIONS_URL, {
+  let url: string;
+  let model: string;
+
+  if (provider === "cerebras") {
+    url = CEREBRAS_URL;
+    model = "k2-think";
+  } else {
+    url = POLLINATIONS_URL;
+    model = "openai";
+  }
+
+  const res = await fetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify({
-      model: "openai",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -42,16 +57,30 @@ async function callAI(
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-export async function testApiKey(apiKey: string): Promise<boolean> {
+export async function testApiKey(
+  apiKey: string,
+  provider: AIProvider = "pollinations"
+): Promise<boolean> {
   try {
-    const res = await fetch(POLLINATIONS_URL, {
+    let url: string;
+    let model: string;
+
+    if (provider === "cerebras") {
+      url = CEREBRAS_URL;
+      model = "k2-think";
+    } else {
+      url = POLLINATIONS_URL;
+      model = "openai";
+    }
+
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "openai",
+        model,
         messages: [{ role: "user", content: "Reply with just the word OK." }],
         max_tokens: 5,
       }),
@@ -68,7 +97,8 @@ export async function generateScene(
   length: string,
   characters: string[],
   apiKey?: string,
-  mode: ScriptMode = "screenplay"
+  mode: ScriptMode = "screenplay",
+  provider: AIProvider = "pollinations"
 ): Promise<ScriptBlock[]> {
   const config = getModeConfig(mode);
   const lengthGuide =
@@ -92,7 +122,7 @@ Return a JSON array of blocks where each has:
 
 Return ONLY valid JSON array, no markdown fences.`;
 
-  const text = await callAI(systemPrompt, premise, 0.8, apiKey);
+  const text = await callAI(systemPrompt, premise, 0.8, apiKey, provider);
 
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) throw new Error("Failed to parse generated scene");
@@ -108,7 +138,8 @@ Return ONLY valid JSON array, no markdown fences.`;
 export async function autocomplete(
   blocks: ScriptBlock[],
   currentIndex: number,
-  apiKey?: string
+  apiKey?: string,
+  provider: AIProvider = "pollinations"
 ): Promise<string> {
   const context = blocks
     .slice(Math.max(0, currentIndex - 5), currentIndex + 1)
@@ -117,7 +148,7 @@ export async function autocomplete(
 
   const systemPrompt = `You are an expert screenwriter. Given the screenplay context, suggest a natural continuation for the current block. Return ONLY the continuation text (a few words to one sentence), no labels or formatting.`;
 
-  return callAI(systemPrompt, context, 0.7, apiKey);
+  return callAI(systemPrompt, context, 0.7, apiKey, provider);
 }
 
 const TOOL_PROMPTS: Record<AITool, string> = {
@@ -156,13 +187,14 @@ Return ONLY valid JSON, no markdown fences.`,
 export async function analyzeScript(
   blocks: ScriptBlock[],
   tool: AITool,
-  apiKey?: string
+  apiKey?: string,
+  provider: AIProvider = "pollinations"
 ): Promise<AIAnalysisResult> {
   const scriptText = blocks
     .map((b, i) => `[${i}][${b.type.toUpperCase()}] ${b.content}`)
     .join("\n");
 
-  const text = await callAI(TOOL_PROMPTS[tool], scriptText, 0.5, apiKey);
+  const text = await callAI(TOOL_PROMPTS[tool], scriptText, 0.5, apiKey, provider);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("Failed to parse analysis");
@@ -175,7 +207,8 @@ export async function analyzeScript(
  */
 export async function parseDocumentToBlocks(
   rawText: string,
-  apiKey?: string
+  apiKey?: string,
+  provider: AIProvider = "pollinations"
 ): Promise<ScriptBlock[]> {
   const systemPrompt = `You are an expert screenplay formatter. Given raw text from a document, parse it into properly formatted screenplay blocks.
 
@@ -188,7 +221,7 @@ Identify scene headings (INT./EXT.), character names (all caps before dialogue),
 If the text is not a screenplay, convert it into screenplay format as best you can.
 Return ONLY valid JSON array, no markdown fences.`;
 
-  const text = await callAI(systemPrompt, rawText, 0.3, apiKey);
+  const text = await callAI(systemPrompt, rawText, 0.3, apiKey, provider);
 
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) throw new Error("Failed to parse document");
@@ -206,7 +239,8 @@ Return ONLY valid JSON array, no markdown fences.`;
  */
 export async function generateVisualDescription(
   sceneBlocks: ScriptBlock[],
-  apiKey?: string
+  apiKey?: string,
+  provider: AIProvider = "pollinations"
 ): Promise<string> {
   const sceneText = sceneBlocks
     .map((b) => `[${b.type.toUpperCase()}] ${b.content}`)
@@ -214,5 +248,5 @@ export async function generateVisualDescription(
 
   const systemPrompt = `You are a storyboard artist. Given a screenplay scene, describe the key visual for a single storyboard frame. Include: setting, character positions, lighting, mood, and camera angle suggestion. Return just the visual description in 2-3 sentences, no JSON.`;
 
-  return callAI(systemPrompt, sceneText, 0.7, apiKey);
+  return callAI(systemPrompt, sceneText, 0.7, apiKey, provider);
 }

@@ -101,7 +101,7 @@ const EditorToolbar = ({
       </div>
 
       <div className="flex items-center gap-1.5">
-        <CollaboratorStack />
+        <CollaboratorStack scriptId={scriptId || undefined} />
 
         <div className="hidden lg:flex items-center gap-1.5 px-3 h-8 bg-muted rounded-md border mr-1">
           <Files size={14} className="text-muted-foreground" />

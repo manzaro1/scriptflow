@@ -3,7 +3,7 @@
  * Supports multiple AI providers including Google Gemini, OpenAI, Anthropic, and custom APIs
  */
 
-export type AIProvider = 'gemini' | 'openai' | 'anthropic' | 'custom';
+export type AIProvider = 'server' | 'gemini' | 'openai' | 'anthropic' | 'custom';
 
 export interface AIProviderConfig {
   provider: AIProvider;
@@ -23,6 +23,14 @@ export interface ProviderInfo {
 }
 
 export const AI_PROVIDERS: ProviderInfo[] = [
+  {
+    id: 'server',
+    name: 'ScriptFlow AI',
+    description: 'Built-in AI — no API key needed',
+    defaultModel: '',
+    models: [],
+    requiresApiKey: false,
+  },
   {
     id: 'gemini',
     name: 'Google Gemini',
@@ -70,9 +78,9 @@ export const getProviderInfo = (provider: AIProvider): ProviderInfo | undefined 
  * Default AI configuration
  */
 export const DEFAULT_AI_CONFIG: AIProviderConfig = {
-  provider: 'gemini',
+  provider: 'server',
   apiKey: '',
-  model: 'gemini-2.0-flash',
+  model: '',
 };
 
 /**
@@ -105,13 +113,15 @@ export const saveAIConfig = (config: AIProviderConfig): void => {
  * Check if user has a valid API key for any provider
  */
 export const hasAIKey = async (provider: AIProvider): Promise<boolean> => {
+  if (provider === 'server') return true;
+
   const config = loadAIConfig();
-  
+
   if (provider === 'custom') {
     // Custom provider doesn't require API key, just base URL
     return !!config.baseUrl;
   }
-  
+
   return !!config.apiKey;
 };
 

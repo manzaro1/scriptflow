@@ -12,7 +12,7 @@ import ScriptCardSkeleton from "@/components/ScriptCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Filter, SearchX, RefreshCw, Film, Plus, ArrowRight, FileText, BrainCircuit, Clapperboard } from 'lucide-react';
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,32 +28,26 @@ import { sanitizeInput } from '@/utils/security';
 import { motion, AnimatePresence } from "framer-motion";
 
 const Index = () => {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const [scripts, setScripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [genreFilter, setGenreFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [collaboratorCount, setCollaboratorCount] = useState(0);
 
   const fetchScripts = useCallback(async (showSkeleton = true) => {
     if (!user) return;
     if (showSkeleton) setLoading(true);
 
     try {
-      const { data: scriptData, error: scriptError } = await supabase
-        .from('scripts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (scriptError) {
-        console.error("[Dashboard] Error:", scriptError);
-        showError("Failed to load scripts.");
-      } else {
-        setScripts(scriptData || []);
-      }
+      const scriptData = await api.getScripts();
+      setScripts(scriptData || []);
+      const count = await api.getCollaboratorCount();
+      setCollaboratorCount(count);
     } catch (err) {
       console.error("[Dashboard] Error:", err);
+      showError("Failed to load scripts.");
     } finally {
       setLoading(false);
     }
@@ -95,20 +89,22 @@ const Index = () => {
   const genres = ["all", ...new Set(scripts.map(s => s.genre).filter(Boolean))];
 
   const handleRename = async (id: string, newTitle: string) => {
-    const sanitizedTitle = sanitizeInput(newTitle);
-    const { error } = await supabase
-      .from('scripts')
-      .update({ title: sanitizedTitle, updated_at: new Date().toISOString() })
-      .eq('id', id);
-
-    if (error) showError("Failed to rename.");
-    else fetchScripts(false);
+    try {
+      const sanitizedTitle = sanitizeInput(newTitle);
+      await api.updateScript(id, { title: sanitizedTitle });
+      fetchScripts(false);
+    } catch {
+      showError("Failed to rename.");
+    }
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('scripts').delete().eq('id', id);
-    if (error) showError("Failed to delete.");
-    else fetchScripts(false);
+    try {
+      await api.deleteScript(id);
+      fetchScripts(false);
+    } catch {
+      showError("Failed to delete.");
+    }
   };
 
   const isNewUser = !loading && scripts.length === 0;
@@ -176,7 +172,7 @@ const Index = () => {
                 <NewScriptModal onComplete={() => fetchScripts(false)} />
               </div>
             </header>
-            <ProductionStats totalScripts={stats.total} totalFinished={stats.finished} totalPages={stats.pages} />
+            <ProductionStats totalScripts={stats.total} totalFinished={stats.finished} totalPages={stats.pages} totalCollaborators={collaboratorCount} />
             <Tabs defaultValue="all" onValueChange={setActiveTab}>
               <TabsList className="mb-6">
                 <TabsTrigger value="all">All</TabsTrigger>

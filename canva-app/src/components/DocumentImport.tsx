@@ -1,9 +1,10 @@
 import React, { useState, useRef } from "react";
 import type { ScriptBlock } from "../types";
-import { parseDocumentToBlocks } from "../utils/ai";
+import { parseDocumentToBlocks, type AIProvider } from "../utils/ai";
 
 interface DocumentImportProps {
   apiKey?: string;
+  provider?: AIProvider;
   onImport: (blocks: ScriptBlock[]) => void;
   addToast?: (text: string, type: "success" | "error" | "info") => void;
 }
@@ -41,6 +42,7 @@ async function extractTextFromTxt(file: File): Promise<string> {
 
 export default function DocumentImport({
   apiKey,
+  provider = "pollinations",
   onImport,
   addToast,
 }: DocumentImportProps) {
@@ -86,8 +88,9 @@ export default function DocumentImport({
 
       // Use AI to parse into script blocks
       const blocks = await parseDocumentToBlocks(
-        text.substring(0, 8000), // Limit to avoid token overflow
-        apiKey
+        text.substring(0, 30000), // Limit to avoid token overflow (supports ~20+ pages)
+        apiKey,
+        provider
       );
       setParsedBlocks(blocks);
       setStatus("preview");
