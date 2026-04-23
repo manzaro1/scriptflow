@@ -113,6 +113,13 @@
     font-size: 12pt;
     line-height: 1.2;
     direction: ltr !important;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  
+  .screenplay-page > * {
+    box-sizing: border-box;
+    max-width: 100%;
   }
 }
 

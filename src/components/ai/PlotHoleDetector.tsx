@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiPrompt } from "@/utils/ai-client";
 import { showError } from "@/utils/toast";
+import { extractJSONFromResponse } from "@/utils/json-extract";
 
 interface ScriptBlock {
   id: string;
@@ -58,23 +59,25 @@ const PlotHoleDetector = ({ blocks }: PlotHoleDetectorProps) => {
     const scriptText = blocks.map((b, i) => `[${i}:${b.type}] ${b.content}`).join('\n');
 
     const { text, error } = await aiPrompt(
-      `You are an expert script continuity supervisor. Analyze the following screenplay for plot holes, continuity errors, and logic gaps.
+      `You are a professional script continuity supervisor. Your job is to catch errors that would show up on screen.
+
+TASK: Scan the screenplay for these types of issues:
+1. TIMELINE ERRORS - Events happening in impossible order, characters appearing before they arrive, time jumps that don't make sense
+2. CHARACTER BEHAVIOR - Characters acting against their established personality, knowing things they shouldn't, forgetting things they knew
+3. SETTING CONTRADICTIONS - Details that change between scenes (character's car, location details, props)
+4. UNRESOLVED THREADS - Setup without payoff, questions raised but never answered, characters introduced then forgotten
+5. LOGIC GAPS - Things that don't make sense, missing cause-and-effect, plot conveniences
 
 Return a JSON array of issues found. Each item must have:
 - "type": one of "timeline", "character-behavior", "setting", "unresolved-thread", "logic"
-- "severity": "critical", "warning", or "info"
-- "description": clear description of the plot hole or inconsistency
-- "sceneRef": which scene(s) the issue relates to (e.g. "Scene 3" or "Scenes 2 & 5")
-- "suggestion": specific actionable fix
+- "severity": "critical" (would break film), "warning" (distracting), or "info" (minor polish)
+- "description": clear description of the specific problem
+- "sceneRef": which scene(s) this relates to
+- "suggestion": concrete fix the writer can apply
 
-Look for:
-- Timeline contradictions (events out of order, impossible timing)
-- Character behavior inconsistencies (acting out of character without motivation)
-- Setting contradictions (details that change between scenes)
-- Unresolved threads (setups without payoffs, dangling subplots)
-- Logic gaps (things that don't make sense, missing cause-effect)
+If no issues found, return an empty array: []
 
-Return ONLY valid JSON array, no markdown fences. If no issues found, return [].`,
+CRITICAL: Return ONLY valid JSON array. No markdown fences.`,
       scriptText,
       0.3
     );
@@ -87,13 +90,12 @@ Return ONLY valid JSON array, no markdown fences. If no issues found, return [].
       return;
     }
 
-    try {
-      const parsed = JSON.parse(text.trim());
-      if (Array.isArray(parsed)) {
-        setHoles(parsed);
-      }
-    } catch {
-      showError("Failed to parse analysis results.");
+    const parsed = extractJSONFromResponse(text);
+    if (Array.isArray(parsed)) {
+      setHoles(parsed);
+    } else {
+      console.error('[PlotHoleDetector] Failed to parse:', text?.substring(0, 200));
+      showError("Failed to parse analysis results. Please try again.");
     }
   };
 

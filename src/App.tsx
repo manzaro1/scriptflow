@@ -14,6 +14,7 @@ import { Loader2 } from "lucide-react";
 import Landing from "./pages/Landing";
 import AuthPage from "./pages/AuthPage";
 import Login from "./pages/Login";
+import ProfileSetup from "./pages/ProfileSetup";
 import NotFound from "./pages/NotFound";
 
 // Lazy-load heavy pages
@@ -22,11 +23,13 @@ const ScriptEditor = lazy(() => import("./pages/ScriptEditor"));
 const Profile = lazy(() => import("./pages/Profile"));
 const CallSheet = lazy(() => import("./pages/CallSheet"));
 const SceneBreakdown = lazy(() => import("./pages/SceneBreakdown"));
+const StoryboardPage = lazy(() => import("./pages/StoryboardPage"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
 const Careers = lazy(() => import("./pages/Careers"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const Admin = lazy(() => import("./pages/Admin"));
+import PricingPage from "./pages/PricingPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +61,7 @@ const App = () => (
                   <Route path="/" element={<Landing />} />
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/login" element={<Login />} />
+                  <Route path="/profile-setup" element={<AuthGuard><ProfileSetup /></AuthGuard>} />
 
                   {/* Protected Routes */}
                   <Route path="/dashboard" element={<AuthGuard><Index /></AuthGuard>} />
@@ -65,11 +69,14 @@ const App = () => (
                   <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
                   <Route path="/call-sheet" element={<AuthGuard><CallSheet /></AuthGuard>} />
                   <Route path="/breakdown" element={<AuthGuard><SceneBreakdown /></AuthGuard>} />
+                  <Route path="/storyboard" element={<AuthGuard><StoryboardPage /></AuthGuard>} />
+                  <Route path="/storyboard/:scriptId" element={<AuthGuard><StoryboardPage /></AuthGuard>} />
 
                   <Route path="/about-us" element={<AboutUs />} />
                   <Route path="/careers" element={<Careers />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/admin" element={<AuthGuard><Admin /></AuthGuard>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

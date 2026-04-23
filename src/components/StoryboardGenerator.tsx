@@ -44,7 +44,7 @@ import { showSuccess, showLoading, dismissToast, showError } from "@/utils/toast
 import StoryboardView, { StoryboardRow } from "./StoryboardView";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 interface ScriptBlock {
   id: string;
@@ -89,29 +89,36 @@ const StoryboardGenerator = ({ isOpen, onOpenChange, scriptBlocks, scriptTitle, 
     const toastId = showLoading("Forging secure production blueprint...");
 
     try {
-      const { data: generatedData, error: funcError } = await supabase.functions.invoke('generate-storyboard', {
-        body: { 
-          scriptBlocks, 
-          aspectRatio, 
-          model: selectedModel 
-        }
+      // Call local API instead of Supabase
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://scriptflow-zaro.zocomputer.io'}/api/storyboard/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${api.getToken()}`
+        },
+        body: JSON.stringify({
+          scriptId,
+          scriptTitle,
+          scriptBlocks,
+          aspectRatio,
+          model: selectedModel,
+          config: {
+            aspectRatio,
+            style: 'cinematic',
+            detailLevel: 'comprehensive'
+          }
+        })
       });
 
-      if (funcError || !generatedData) {
-        throw new Error(funcError?.message || "Failed to generate storyboard data");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to generate storyboard (${response.status})`);
       }
 
-      const { error: dbError } = await supabase
-        .from('storyboards')
-        .insert({
-          script_id: scriptId,
-          data: generatedData,
-          aspect_ratio: aspectRatio,
-        });
-
-      if (dbError) throw dbError;
-
-      setStoryboardData(generatedData);
+      const generatedData = await response.json();
+      
+      // The API already saves to the database, just use the returned data
+      setStoryboardData(generatedData.storyboard || []);
       setShowResult(true);
       showSuccess(`Production Blueprint forged and saved.`);
     } catch (error: any) {

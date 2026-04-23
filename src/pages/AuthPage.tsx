@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Film } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
@@ -33,8 +33,8 @@ const AuthPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button asChild className="w-full">
-            <Link to="/login">Sign In / Create Account</Link>
+          <Button className="w-full" onClick={() => navigate('/login')}>
+            Sign In / Create Account
           </Button>
         </CardContent>
       </Card>

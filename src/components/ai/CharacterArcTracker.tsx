@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiPrompt } from "@/utils/ai-client";
 import { showError } from "@/utils/toast";
+import { extractJSONFromResponse } from "@/utils/json-extract";
 
 interface ScriptBlock {
   id: string;
@@ -61,14 +62,24 @@ const CharacterArcTracker = ({ blocks, characters }: CharacterArcTrackerProps) =
     const charList = characters.slice(0, 8).join(', ');
 
     const { text, error } = await aiPrompt(
-      `You are a character development analyst. Analyze the emotional arcs of these characters: ${charList}
+      `You are a character development analyst. Your job is to track how characters evolve emotionally throughout a screenplay.
 
-For each character, identify 3-6 key emotional beats across the script. Return a JSON array where each item has:
-- "character": character name
-- "arc": array of { "scene": scene heading, "emotion": one of happy/sad/angry/fearful/determined/confused/hopeful/desperate, "intensity": 0-100, "goal": what they want, "conflict": what blocks them }
-- "summary": 1-sentence arc summary
+TASK: Analyze the emotional journey of each character across scenes. For each character, identify key emotional beats - moments where their feelings, goals, or conflicts shift.
 
-Return ONLY valid JSON array, no markdown fences.`,
+For each character, return a JSON object with:
+- "character": the character's name
+- "arc": array of 3-6 emotional beat points, each with:
+  - "scene": the scene heading (e.g., "INT. OFFICE - DAY")
+  - "emotion": primary emotion (happy, sad, angry, fearful, determined, confused, hopeful, desperate)
+  - "intensity": 0-100 how intense this moment is
+  - "goal": what the character wants in this moment
+  - "conflict": what's stopping them
+- "summary": one sentence describing their overall emotional journey
+
+EXAMPLE OUTPUT:
+[{"character":"JOHN","arc":[{"scene":"INT. OFFICE - DAY","emotion":"determined","intensity":75,"goal":"Get the promotion","conflict":"Rival colleague competing"}],"summary":"John's confidence grows as he overcomes professional obstacles."}]
+
+CRITICAL: Return ONLY valid JSON array. No markdown fences.`,
       scriptText,
       0.5
     );
@@ -80,14 +91,13 @@ Return ONLY valid JSON array, no markdown fences.`,
       return;
     }
 
-    try {
-      const parsed = JSON.parse(text.trim());
-      if (Array.isArray(parsed)) {
-        setArcs(parsed);
-        if (parsed.length > 0) setSelectedChar(parsed[0].character);
-      }
-    } catch {
-      showError("Failed to parse character arc data.");
+    const parsed = extractJSONFromResponse(text);
+    if (Array.isArray(parsed)) {
+      setArcs(parsed);
+      if (parsed.length > 0) setSelectedChar(parsed[0].character);
+    } else {
+      console.error('[CharacterArcTracker] Failed to parse:', text?.substring(0, 200));
+      showError("Failed to parse character arc data. Please try again.");
     }
   };
 

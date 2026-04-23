@@ -27,7 +27,9 @@ import {
   CheckCircle2,
   XCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  MessageCircle,
+  Link2
 } from 'lucide-react';
 import {
   Select,
@@ -51,9 +53,39 @@ import { useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 
 const Profile = () => {
+  const [globalModel, setGlobalModel] = useState("k2think");
+  const [isAdminUser, setIsAdminUser] = useState(false);
+
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('tab') || 'account';
   const { user: currentUser } = useAuth();
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (currentUser) {
+        try {
+          const res = await api.getGlobalModel();
+          setIsAdminUser(true);
+          setGlobalModel(res.model);
+        } catch {
+          setIsAdminUser(false);
+        }
+      }
+    };
+    checkAdmin();
+  }, [currentUser]);
+
+  const handleModelChange = async (newModel: string) => {
+    try {
+      // Send as 'provider' since that's what the API expects
+      await api.setGlobalModel(newModel);
+      setGlobalModel(newModel);
+      showSuccess(`Switched to ${newModel} model. Changes will take effect immediately in Telegram.`);
+    } catch (err: any) {
+      showError("Failed to switch model");
+    }
+  };
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
@@ -75,6 +107,13 @@ const Profile = () => {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
+  // Telegram linking state
+  const [telegramLinked, setTelegramLinked] = useState(false);
+  const [telegramUsername, setTelegramUsername] = useState('');
+  const [telegramLinkCode, setTelegramLinkCode] = useState('');
+  const [telegramError, setTelegramError] = useState<string | null>(null);
+  const [loadingTelegram, setLoadingTelegram] = useState(false);
+
 
   useEffect(() => {
     const fetchKeyStatus = async () => {
@@ -123,6 +162,21 @@ const Profile = () => {
       fetchScripts();
     }
   }, [currentUser, fetchTeamMembers, fetchScripts]);
+  // Check telegram link status
+  useEffect(() => {
+    const checkTelegram = async () => {
+      if (!currentUser) return;
+      try {
+        const res = await api.getTelegramStatus();
+        setTelegramLinked(res.linked);
+        if (res.username) setTelegramUsername(res.username);
+      } catch (e) {
+        // Not linked or error
+      }
+    };
+    checkTelegram();
+  }, [currentUser]);
+
 
   const handleSaveKey = async () => {
     const providerInfo = AI_PROVIDERS.find(p => p.id === aiProvider);
@@ -193,8 +247,23 @@ const Profile = () => {
     setInviteLoading(true);
 
     try {
+      // Add collaborator to database
       await api.addCollaborator(inviteScriptId, sanitizeInput(inviteEmail.toLowerCase()), inviteRole as 'editor' | 'viewer');
-      showSuccess(`Invitation sent to ${sanitizeInput(inviteEmail)}`);
+      
+      // Get script title for email
+      const script = scripts.find(s => s.id === inviteScriptId);
+      const scriptTitle = script?.title || 'Untitled Script';
+      
+      // Send invitation email
+      try {
+        await api.sendEmailInvite(inviteEmail.toLowerCase(), scriptTitle, inviteRole, inviteScriptId);
+        showSuccess(`Invitation sent to ${sanitizeInput(inviteEmail)}`);
+      } catch (emailErr) {
+        // Email failed but collaborator was added
+        console.error('Email send failed:', emailErr);
+        showSuccess(`Collaborator added, but email failed to send. They can access the script now.`);
+      }
+      
       setInviteEmail('');
       fetchTeamMembers();
     } catch (err: any) {
@@ -285,6 +354,137 @@ const Profile = () => {
                         <Input id="email" defaultValue={currentUser?.email || ""} readOnly className="bg-muted" />
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+
+                {/* Telegram Integration */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg">
+                        <MessageCircle size={20} />
+                      </div>
+                      <div>
+                        <CardTitle>Telegram Integration</CardTitle>
+                        <CardDescription>Link your Telegram to chat with your script characters.</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {telegramLinked ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-3">
+                            <CheckCircle2 className="text-green-600 dark:text-green-400" size={20} />
+                            <div>
+                              <p className="font-medium">✅ Telegram Connected!</p>
+                              <p className="text-sm text-muted-foreground">You can now chat with your characters</p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await api.unlinkTelegram();
+                                setTelegramLinked(false);
+                                setTelegramUsername('');
+                                showSuccess("Telegram account unlinked");
+                              } catch (err: any) {
+                                showError(err.message || "Failed to unlink Telegram");
+                              }
+                            }}
+                          >
+                            Unlink
+                          </Button>
+                        </div>
+                        
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <p className="font-medium text-sm mb-3">📱 Available Telegram Commands:</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              <code className="px-1.5 py-0.5 bg-background rounded font-mono">/start</code>
+                              <span className="text-muted-foreground">Get started</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <code className="px-1.5 py-0.5 bg-background rounded font-mono">/scripts</code>
+                              <span className="text-muted-foreground">List your scripts</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <code className="px-1.5 py-0.5 bg-background rounded font-mono">/chat [name]</code>
+                              <span className="text-muted-foreground">Talk to character</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <code className="px-1.5 py-0.5 bg-background rounded font-mono">/autocomplete</code>
+                              <span className="text-muted-foreground">AI suggestions</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <code className="px-1.5 py-0.5 bg-background rounded font-mono">/feedback</code>
+                              <span className="text-muted-foreground">Analyze dialogue</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <code className="px-1.5 py-0.5 bg-background rounded font-mono">/help</code>
+                              <span className="text-muted-foreground">All commands</span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-3">
+                            💡 Try: <code className="px-1 bg-background rounded">/chat John</code> to talk to your character John!
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Connect your Telegram account to chat with your characters anytime, anywhere.
+                        </p>
+                        {telegramError && (
+                          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                            <p className="text-sm text-red-600 dark:text-red-400">❌ {telegramError}</p>
+                          </div>
+                        )}
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Input
+                            placeholder="Enter code from bot..."
+                            value={telegramLinkCode}
+                            onChange={(e) => {
+                              setTelegramLinkCode(e.target.value);
+                              setTelegramError(null);
+                            }}
+                            className="flex-1"
+                          />
+                          <Button 
+                            onClick={async () => {
+                              if (!telegramLinkCode.trim()) {
+                                setTelegramError("Please enter the code from the bot");
+                                return;
+                              }
+                              setLoadingTelegram(true);
+                              setTelegramError(null);
+                              try {
+                                await api.linkTelegram(telegramLinkCode.trim());
+                                setTelegramLinked(true);
+                                showSuccess("Telegram account linked!");
+                                setTelegramLinkCode('');
+                              } catch (err: any) {
+                                setTelegramError(err.message || "Failed to link Telegram");
+                              } finally {
+                                setLoadingTelegram(false);
+                              }
+                            }}
+                            disabled={loadingTelegram || !telegramLinkCode.trim()}
+                            className="gap-2"
+                          >
+                            {loadingTelegram ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+                            Link Account
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <p>1. Open Telegram and search <strong>@FlowScriptBot</strong></p>
+                          <p>2. Send: <code className="px-1 bg-muted rounded">/link</code></p>
+                          <p>3. Enter the code you receive here</p>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -500,7 +700,38 @@ const Profile = () => {
               </TabsContent>
 
               {/* ==================== AI ==================== */}
-              <TabsContent value="ai" className="space-y-6">
+                            <TabsContent value="ai" className="space-y-6">
+                {/* Admin Model Switching - Only for Charles */}
+                {isAdminUser && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">🛠️ Admin: AI Model</CardTitle>
+                      <CardDescription>Switch the AI model for all users and Telegram bot.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Current Model</p>
+                          <p className="text-sm font-bold">{globalModel === 'k2think' ? 'K2-Think (Primary)' : globalModel === 'nvidia' ? 'NVIDIA Kimi-K2.5' : 'NVIDIA Qwen-3.5'}</p>
+                        </div>
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Active" />
+                      </div>
+                      <Select value={globalModel} onValueChange={handleModelChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="k2think">K2-Think (Primary)</SelectItem>
+                          <SelectItem value="nvidia">NVIDIA Kimi-K2.5</SelectItem>
+                          <SelectItem value="nvidia-fallback">NVIDIA Qwen-3.5</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        💡 Changes take effect immediately in Telegram bot and all AI features.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
                 <Card>
                   <CardHeader>
                     <div className="flex items-center gap-3">
@@ -509,86 +740,23 @@ const Profile = () => {
                       </div>
                       <div>
                         <CardTitle>AI Integration</CardTitle>
-                        <CardDescription>Configure your AI provider. ScriptFlow AI works out of the box — or bring your own key.</CardDescription>
+                        <CardDescription>ScriptFlow AI powers all your writing tools.</CardDescription>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <Label>AI Provider</Label>
-                      <Select value={aiProvider} onValueChange={(v: AIProvider) => { setAiProvider(v); setTestResult(null); }}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AI_PROVIDERS.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} {!p.requiresApiKey && p.id === 'server' ? '(Built-in)' : ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="text-green-500" size={16} />
+                        <p className="text-sm font-semibold">Using ScriptFlow AI (Built-in)</p>
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        {AI_PROVIDERS.find(p => p.id === aiProvider)?.description}
+                        No configuration needed. All AI features are ready to use.
                       </p>
                     </div>
 
-                    {aiProvider !== 'server' && (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor="ai-key">API Key</Label>
-                          <div className="flex gap-2">
-                            <div className="relative flex-1">
-                              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                id="ai-key"
-                                className="pl-10 pr-10 font-mono text-sm"
-                                type={showKey ? "text" : "password"}
-                                placeholder="Enter API key..."
-                                value={aiKeyInput}
-                                onChange={(e) => { setAiKeyInput(e.target.value); setTestResult(null); }}
-                                disabled={loadingKey}
-                              />
-                              <button
-                                type="button"
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                onClick={() => setShowKey(!showKey)}
-                              >
-                                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                              </button>
-                            </div>
-                            <Button variant="outline" onClick={handleTestKey} disabled={testingKey || !aiKeyInput.trim() || loadingKey}>
-                              {testingKey ? <Loader2 size={16} className="animate-spin" /> : "Test"}
-                            </Button>
-                          </div>
-                          {testResult === 'success' && (
-                            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                              <CheckCircle2 size={12} /> Key is valid and working
-                            </p>
-                          )}
-                          {testResult === 'error' && (
-                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                              <XCircle size={12} /> Key is invalid or expired
-                            </p>
-                          )}
-                        </div>
-
-                        {aiProvider === 'custom' && (
-                          <div className="space-y-2">
-                            <Label htmlFor="base-url">Base URL</Label>
-                            <Input
-                              id="base-url"
-                              placeholder="https://api.example.com/v1"
-                              value={customBaseUrl}
-                              onChange={(e) => setCustomBaseUrl(e.target.value)}
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-
                     <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
-                      <p className="text-sm font-semibold">AI features powered by your key:</p>
+                      <p className="text-sm font-semibold">AI features included:</p>
                       <ul className="text-xs text-muted-foreground space-y-1.5">
                         <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-purple-500" /> Autocomplete — press Ctrl+J while writing</li>
                         <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Scene Generator — generate full scenes from a premise</li>
@@ -598,16 +766,6 @@ const Profile = () => {
                       </ul>
                     </div>
                   </CardContent>
-                  <CardFooter className="border-t px-6 py-4 flex justify-between">
-                    {aiProvider !== 'server' && hasKey && (
-                      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={handleRemoveKey}>
-                        Reset to Built-in
-                      </Button>
-                    )}
-                    <Button onClick={handleSaveKey} disabled={loadingKey} className="ml-auto">
-                      Save Settings
-                    </Button>
-                  </CardFooter>
                 </Card>
               </TabsContent>
             </Tabs>

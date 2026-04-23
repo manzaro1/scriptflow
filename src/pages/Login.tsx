@@ -1,18 +1,103 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
+import { api } from '@/lib/api';
+
+const GOOGLE_CLIENT_ID = '279400588866-7r2i1pece4qa8t59i5pb1ne20qpo4uol.apps.googleusercontent.com';
+
+// Add type declarations for Google Sign-In
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleInitialized, setGoogleInitialized] = useState(false);
   const navigate = useNavigate();
   const { signIn, signUp } = useAuth();
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  // Define the callback with useCallback to avoid stale closures
+  const handleGoogleSignIn = useCallback(async (response: { credential: string }) => {
+    setGoogleLoading(true);
+    try {
+      const result = await api.signInWithGoogle(response.credential);
+      
+      // Check if user needs to complete profile
+      const user = await api.getUser();
+      if (user.profile_complete === 0 || user.profile_complete === null) {
+        navigate('/profile-setup');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      const errorMsg = err.message || 'Google sign-in failed';
+      showError(errorMsg);
+      console.error('Google sign-in error:', err);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [navigate]);
+
+  // Initialize Google Sign-In when window.google becomes available
+  useEffect(() => {
+    const initGoogle = () => {
+      if (window.google && googleButtonRef.current && !googleInitialized) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleSignIn,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          window.google.accounts.id.renderButton(googleButtonRef.current, {
+            theme: 'outline',
+            size: 'large',
+            width: googleButtonRef.current.offsetWidth || 300,
+            text: 'continue_with',
+          });
+          
+          setGoogleInitialized(true);
+          console.log('Google Sign-In initialized successfully');
+        } catch (err) {
+          console.error('Failed to initialize Google Sign-In:', err);
+        }
+      }
+    };
+
+    // Check immediately
+    initGoogle();
+
+    // Poll for window.google availability (script loads async)
+    const interval = setInterval(() => {
+      if (window.google && !googleInitialized) {
+        initGoogle();
+        clearInterval(interval);
+      }
+    }, 100);
+
+    // Cleanup
+    return () => clearInterval(interval);
+  }, [handleGoogleSignIn, googleInitialized]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +106,7 @@ function Login() {
     try {
       if (isSignUp) {
         await signUp(email, password);
+        showSuccess('Account created successfully!');
       } else {
         await signIn(email, password);
       }
@@ -67,6 +153,22 @@ function Login() {
             {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
           </Button>
         </form>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+          </div>
+        </div>
+
+        <div ref={googleButtonRef} className="flex justify-center" />
+
+        {googleLoading && (
+          <p className="text-center text-sm text-muted-foreground">Signing in with Google...</p>
+        )}
+
         <p className="text-center text-sm text-muted-foreground">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button

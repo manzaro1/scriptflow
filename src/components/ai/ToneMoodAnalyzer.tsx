@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiPrompt } from "@/utils/ai-client";
 import { showError } from "@/utils/toast";
+import { extractJSONFromResponse } from "@/utils/json-extract";
 
 interface ScriptBlock {
   id: string;
@@ -49,17 +50,26 @@ const ToneMoodAnalyzer = ({ blocks }: ToneMoodAnalyzerProps) => {
     const scriptText = blocks.map(b => `[${b.type}] ${b.content}`).join('\n');
 
     const { text, error } = await aiPrompt(
-      `You are a film tone analyst. Analyze the emotional tone and mood of each scene in this screenplay.
+      `You are a cinematographer and director analyzing the emotional texture of a screenplay.
 
-For each scene (identified by sluglines), return a JSON array where each item has:
-- "scene": the slugline text
-- "mood": 1-2 word mood label (e.g., "Tense", "Romantic", "Eerie", "Triumphant")
-- "tension": 0-100 tension level
-- "pacing": "slow", "medium", or "fast"
-- "color": a hex color that represents the scene's mood (warm=positive, cool=negative, dark=intense)
-- "notes": 1-sentence analysis of why this scene has this tone
+TASK: For each scene in this screenplay, determine:
+1. The MOOD - what emotional atmosphere does this scene create?
+2. TENSION LEVEL - how much dramatic tension/suspense is present?
+3. PACING - how fast or slow does this scene feel?
+4. COLOR PALETTE - what colors would visually represent this scene's mood?
 
-Return ONLY valid JSON array, no markdown fences.`,
+Return a JSON array where each item has:
+- "scene": the scene heading (e.g., "INT. OFFICE - DAY")
+- "mood": 1-2 words describing the emotional atmosphere (e.g., "Tense", "Romantic", "Eerie", "Hopeful", "Desperate", "Peaceful")
+- "tension": 0-100 (0 = calm, 100 = maximum suspense)
+- "pacing": "slow" (contemplative), "medium" (steady), or "fast" (rapid, urgent)
+- "color": hex color that represents the mood (warm colors for positive, cool for negative, dark for intense)
+- "notes": one sentence explaining WHY this scene has this tone
+
+EXAMPLE OUTPUT:
+[{"scene":"INT. OFFICE - DAY","mood":"Tense","tension":75,"pacing":"fast","color":"#ef4444","notes":"High stakes confrontation creates urgency."}]
+
+CRITICAL: Return ONLY valid JSON array. No markdown fences.`,
       scriptText,
       0.4
     );
@@ -71,13 +81,12 @@ Return ONLY valid JSON array, no markdown fences.`,
       return;
     }
 
-    try {
-      const parsed = JSON.parse(text.trim());
-      if (Array.isArray(parsed)) {
-        setScenes(parsed);
-      }
-    } catch {
-      showError("Failed to parse tone analysis.");
+    const parsed = extractJSONFromResponse(text);
+    if (Array.isArray(parsed)) {
+      setScenes(parsed);
+    } else {
+      console.error('[ToneMoodAnalyzer] Failed to parse:', text?.substring(0, 200));
+      showError("Failed to parse tone analysis. Please try again.");
     }
   };
 

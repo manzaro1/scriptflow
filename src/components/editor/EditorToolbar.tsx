@@ -3,6 +3,7 @@
 import React from 'react';
 import {
   ArrowLeft,
+  Download,
   Save,
   Sparkles,
   BrainCircuit,
@@ -17,7 +18,9 @@ import {
   FileText,
   RefreshCw,
   MessageSquare,
-  Globe
+  Globe,
+  FileDown,
+  Film
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +41,7 @@ interface EditorToolbarProps {
   focusedBlockType?: string;
   onSave: () => void;
   onRenameClick: () => void;
-  onStoryboardClick: () => void;
+  onStoryboardEngineClick?: () => void;
   onGenerateSceneClick: () => void;
   onOverseerClick: () => void;
   showOverseer: boolean;
@@ -49,6 +52,10 @@ interface EditorToolbarProps {
   onRewriterClick: () => void;
   onPolishClick: () => void;
   onTranslateClick: () => void;
+  onDownload: () => void;
+  onDownloadPdf: () => void;
+  onDownloadDocx: () => void;
+  onDirectDownloadPdf?: () => void;
 }
 
 const EditorToolbar = ({
@@ -62,7 +69,7 @@ const EditorToolbar = ({
   focusedBlockType,
   onSave,
   onRenameClick,
-  onStoryboardClick,
+  onStoryboardEngineClick,
   onGenerateSceneClick,
   onOverseerClick,
   showOverseer,
@@ -73,6 +80,10 @@ const EditorToolbar = ({
   onRewriterClick,
   onPolishClick,
   onTranslateClick,
+  onDownload,
+  onDownloadPdf,
+  onDownloadDocx,
+  onDirectDownloadPdf,
 }: EditorToolbarProps) => {
   return (
     <header className="h-14 border-b bg-background flex items-center px-4 justify-between shrink-0 z-10 shadow-sm">
@@ -110,16 +121,7 @@ const EditorToolbar = ({
 
         <div className="h-5 w-px bg-border hidden lg:block" />
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2 h-8 bg-gradient-to-r from-purple-500/10 to-fuchsia-500/10 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:from-purple-500/20 hover:to-fuchsia-500/20"
-          onClick={onStoryboardClick}
-        >
-          <Sparkles size={16} />
-          <span className="hidden sm:inline">AI Storyboard</span>
-        </Button>
-
+        {/* Generate Scene Button */}
         {!isReadOnly && (
           <Button
             variant="outline"
@@ -148,6 +150,9 @@ const EditorToolbar = ({
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem onClick={onLoglineClick} className="gap-2 cursor-pointer">
               <FileText size={14} /> Logline & Synopsis
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onStoryboardEngineClick} className="gap-2 cursor-pointer">
+              <Film size={14} /> Video Production Blueprint
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onRewriterClick} className="gap-2 cursor-pointer">
               <RefreshCw size={14} /> Scene Rewriter
@@ -184,6 +189,37 @@ const EditorToolbar = ({
           <BrainCircuit size={16} />
           <span className="hidden sm:inline">Overseer</span>
         </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-8"
+            >
+              <Download size={14} />
+              <span className="hidden sm:inline">Export</span>
+              <ChevronDown size={12} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {onDirectDownloadPdf && (
+              <DropdownMenuItem onClick={onDirectDownloadPdf} className="gap-2 cursor-pointer">
+                <FileDown size={14} /> Download PDF
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={onDownloadPdf} className="gap-2 cursor-pointer">
+              <FileText size={14} /> Print to PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDownloadDocx} className="gap-2 cursor-pointer">
+              <FileDown size={14} /> Export as Word (.docx)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDownload} className="gap-2 cursor-pointer">
+              <FileText size={14} /> Export as Text (.txt)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="h-5 w-px bg-border hidden sm:block" />
 

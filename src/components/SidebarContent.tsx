@@ -12,7 +12,8 @@ import {
   Archive,
   FolderOpen,
   ClipboardList,
-  FileSearch
+  FileSearch,
+  Wand2
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -28,13 +29,19 @@ const SidebarContent = ({ onItemClick }: SidebarContentProps) => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: FileText, label: 'My Scripts', path: '/dashboard' },
     { icon: FileSearch, label: 'Scene Breakdown', path: '/breakdown' },
+    { icon: Wand2, label: 'Storyboard', path: '/storyboard' },
     { icon: ClipboardList, label: 'Call Sheets', path: '/call-sheet' },
     { icon: Star, label: 'Favorites', path: '/dashboard' },
     { icon: Users, label: 'Collaborations', path: '/profile' },
     { icon: FolderOpen, label: 'Projects', path: '/dashboard' },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === '/storyboard') {
+      return location.pathname.startsWith('/storyboard');
+    }
+    return location.pathname === path;
+  };
 
   const handleNavigate = (path: string) => {
     navigate(path);

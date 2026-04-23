@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiPrompt } from "@/utils/ai-client";
 import { showError } from "@/utils/toast";
+import { extractJSONFromResponse } from "@/utils/json-extract";
 
 interface ScriptBlock {
   id: string;
@@ -51,15 +52,31 @@ const ScriptDoctor = ({ blocks, onApplyFix }: ScriptDoctorProps) => {
     const scriptText = blocks.map((b, i) => `[${i}:${b.type}] ${b.content}`).join('\n');
 
     const { text, error } = await aiPrompt(
-      `You are an expert screenplay doctor. Analyze the following script for issues.
+      `You are a professional screenplay DOCTOR - a specialist who diagnoses and treats screenplay problems.
+
+YOUR EXPERTISE:
+- Plot structure and story logic
+- Pacing and rhythm issues
+- Dialogue authenticity and impact
+- Character consistency and development
+- Format and industry standards
+
+TASK: Examine this screenplay and identify specific, actionable issues. For each issue:
+- Pinpoint the exact problem
+- Explain WHY it's a problem
+- Suggest a concrete fix
+
 Return a JSON array of diagnostics. Each item must have:
 - "category": one of "plot", "pacing", "dialogue", "format", "character"
-- "severity": "high", "medium", or "low"
-- "issue": short description of the problem
-- "suggestion": specific actionable fix
-- "blockIndex": the block number where the issue occurs (optional)
+- "severity": "high" (blocks story), "medium" (weakens impact), or "low" (polish needed)
+- "issue": one-sentence problem description
+- "suggestion": specific actionable fix the writer can apply
+- "blockIndex": the block number where the issue occurs (if applicable)
 
-Return ONLY valid JSON array, no markdown fences.`,
+EXAMPLE OUTPUT:
+[{"category":"dialogue","severity":"medium","issue":"Dialogue feels on-the-nose","suggestion":"Add subtext - what does the character WANT but not say?","blockIndex":5}]
+
+CRITICAL: Return ONLY valid JSON array. No markdown fences, no explanation.`,
       scriptText,
       0.4
     );
@@ -72,13 +89,12 @@ Return ONLY valid JSON array, no markdown fences.`,
       return;
     }
 
-    try {
-      const parsed = JSON.parse(text.trim());
-      if (Array.isArray(parsed)) {
-        setDiagnostics(parsed);
-      }
-    } catch {
-      showError("Failed to parse analysis results.");
+    const parsed = extractJSONFromResponse(text);
+    if (Array.isArray(parsed)) {
+      setDiagnostics(parsed);
+    } else {
+      console.error('[ScriptDoctor] Failed to parse:', text?.substring(0, 200));
+      showError("Failed to parse analysis results. Please try again.");
     }
   };
 

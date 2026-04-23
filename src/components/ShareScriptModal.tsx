@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Share2, Mail, Link, Copy, Check, Trash2, Loader2 } from 'lucide-react';
+import { Share2, Mail, Link, Copy, Check, Trash2, Loader2, Send } from 'lucide-react';
 import { showSuccess, showError } from "@/utils/toast";
 import { api } from "@/lib/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

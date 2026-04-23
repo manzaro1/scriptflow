@@ -42,28 +42,34 @@ const ScriptBlockItem = ({
 }: ScriptBlockItemProps) => {
   
   const getBlockStyles = (type: string, isFocused: boolean) => {
-    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded whitespace-pre-wrap font-screenplay text-[12pt] leading-normal relative block w-full";
+    const base = "outline-none transition-colors duration-150 min-h-[1.5em] rounded whitespace-pre-wrap break-words font-screenplay text-[12pt] leading-normal relative block";
     const editClass = isReadOnly ? "" : "focus:bg-primary/5";
     const focusBorder = isFocused && !isReadOnly ? "border-l-2" : "border-l-2 border-transparent";
 
     switch (type) {
       case 'character':
-        return cn(base, editClass, focusBorder, isFocused && "border-l-film-violet", "uppercase font-bold mb-0 mt-6 ml-[2.2in] mr-[1.4in] text-left");
+        // Start at 3.7in from page edge (2.2in from content start), width ~2.5in
+        return cn(base, editClass, focusBorder, isFocused && "border-l-film-violet", "uppercase font-bold mb-0 mt-6 ml-[2.2in] mr-0 text-left max-w-[2.5in]");
       case 'dialogue':
-        return cn(base, editClass, focusBorder, isFocused && "border-l-blue-500", "mb-4 relative group ml-[1in] mr-[1.5in] text-left");
+        // Start at 2.5in from page edge (1in from content start), width ~3.5in
+        return cn(base, editClass, focusBorder, isFocused && "border-l-blue-500", "mb-4 relative group ml-[1in] mr-0 text-left max-w-[3.5in]");
       case 'parenthetical':
-        return cn(base, editClass, focusBorder, isFocused && "border-l-purple-400", "italic mb-0 ml-[1.6in] mr-[2in] text-left");
+        // Start at 3.1in from page edge (1.6in from content start), width ~2in
+        return cn(base, editClass, focusBorder, isFocused && "border-l-purple-400", "italic mb-0 ml-[1.6in] mr-0 text-left max-w-[2in]");
       case 'slugline':
-        return cn(base, editClass, focusBorder, isFocused && "border-l-film-amber", "uppercase font-bold mb-4 mt-8 text-left");
+        // Full width (6in content area)
+        return cn(base, editClass, focusBorder, isFocused && "border-l-film-amber", "uppercase font-bold mb-4 mt-8 text-left max-w-[6in]");
       case 'transition':
-        return cn(base, editClass, focusBorder, isFocused && "border-l-amber-500", "script-block-transition uppercase font-bold mb-4 mt-4 text-right");
+        // Right aligned, full width
+        return cn(base, editClass, focusBorder, isFocused && "border-l-amber-500", "script-block-transition uppercase font-bold mb-4 mt-4 text-right max-w-[6in]");
       default: // action
-        return cn(base, editClass, focusBorder, isFocused && "border-l-muted-foreground/30", "mb-4 text-left");
+        // Full width (6in content area)
+        return cn(base, editClass, focusBorder, isFocused && "border-l-muted-foreground/30", "mb-4 text-left max-w-[6in]");
     }
   };
 
   return (
-    <div className="relative w-full" style={{ direction: 'ltr' }}>
+    <div className="relative" style={{ direction: 'ltr' }}>
       {isFocused && !isReadOnly && (
         <div className="absolute -left-[1.3in] top-0 text-[8px] font-bold uppercase tracking-wider text-muted-foreground/40 select-none">
           {block.type}
@@ -79,7 +85,9 @@ const ScriptBlockItem = ({
         style={{ 
           direction: 'ltr',
           unicodeBidi: 'plaintext',
-          textAlign: 'left'
+          textAlign: block.type === 'transition' ? 'right' : 'left',
+          wordWrap: 'break-word',
+          overflowWrap: 'break-word'
         } as React.CSSProperties}
         onKeyDown={onKeyDown}
         onInput={onInput}

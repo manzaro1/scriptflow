@@ -3,7 +3,7 @@
  * Supports multiple AI providers including Google Gemini, OpenAI, Anthropic, and custom APIs
  */
 
-export type AIProvider = 'server' | 'gemini' | 'openai' | 'anthropic' | 'custom';
+export type AIProvider = 'server' | 'gemini' | 'openai' | 'anthropic' | 'custom' | 'k2think' | 'nvidia';
 
 export interface AIProviderConfig {
   provider: AIProvider;
@@ -30,6 +30,24 @@ export const AI_PROVIDERS: ProviderInfo[] = [
     defaultModel: '',
     models: [],
     requiresApiKey: false,
+  },
+  {
+    id: 'nvidia',
+    name: 'NVIDIA NIM',
+    description: 'NVIDIA NIM API with Kimi and Qwen models',
+    defaultModel: 'moonshotai/kimi-k2.5',
+    models: ['moonshotai/kimi-k2.5', 'qwen/qwen3.5-122b-a10b', 'meta/llama-3.1-405b-instruct', 'meta/llama-3.1-70b-instruct'],
+    baseUrl: 'https://integrate.api.nvidia.com/v1',
+    requiresApiKey: true,
+  },
+  {
+    id: 'k2think',
+    name: 'K2-Think',
+    description: 'K2-Think reasoning model',
+    defaultModel: 'MBZUAI-IFM/K2-Think-v2',
+    models: ['MBZUAI-IFM/K2-Think-v2'],
+    baseUrl: 'https://build-api.k2think.ai/v1',
+    requiresApiKey: true,
   },
   {
     id: 'gemini',
@@ -84,13 +102,30 @@ export const DEFAULT_AI_CONFIG: AIProviderConfig = {
 };
 
 /**
- * Load AI configuration from localStorage
+ * Load AI configuration from localStorage.
+ * Ensures server provider is used if no valid config exists.
  */
 export const loadAIConfig = (): AIProviderConfig => {
   try {
     const saved = localStorage.getItem('ai_provider_config');
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // Validate the config has a valid provider
+      if (parsed.provider && ['server', 'k2think', 'nvidia', 'gemini', 'openai', 'anthropic', 'custom'].includes(parsed.provider)) {
+        // If provider is server, no key needed - always valid
+        if (parsed.provider === 'server') {
+          return { provider: 'server', apiKey: '', model: '' };
+        }
+        // For other providers, ensure apiKey exists (or baseUrl for custom)
+        if (parsed.provider === 'custom' && parsed.baseUrl) {
+          return parsed;
+        }
+        if (parsed.apiKey) {
+          return parsed;
+        }
+        // Invalid config (missing key) - fall back to server
+        return { provider: 'server', apiKey: '', model: '' };
+      }
     }
   } catch (e) {
     console.error('Failed to load AI config:', e);

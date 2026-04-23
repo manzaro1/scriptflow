@@ -22,7 +22,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles, FileText, Edit3, Loader2 } from 'lucide-react';
+import { Plus, UserPlus, ArrowRight, ArrowLeft, Check, Sparkles, FileText, Edit3, Loader2, MapPin } from 'lucide-react';
 import { showSuccess, showError } from "@/utils/toast";
 import { api } from "@/lib/api";
 import { sanitizeInput } from "@/utils/security";
@@ -37,11 +37,13 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
   const [extractedTitle, setExtractedTitle] = useState('');
   const [characters, setCharacters] = useState<any[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [createdScriptId, setCreatedScriptId] = useState<string | null>(null);
   
   // Script form state
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('Alex Rivers');
   const [genre, setGenre] = useState('sci-fi');
+  const [setting, setSetting] = useState('');
   
   // Character form state
   const [charName, setCharName] = useState('');
@@ -50,6 +52,7 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
   const [charNationality, setCharNationality] = useState('');
   const [charSkin, setCharSkin] = useState('');
   const [charMotivation, setCharMotivation] = useState('');
+  const [charSetting, setCharSetting] = useState('');
 
   const addCharacter = () => {
     if (!charName) return;
@@ -58,8 +61,9 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
       role: charRole, 
       age: charAge, 
       nationality: charNationality, 
-      skin: charSkin, 
-      motivation: charMotivation 
+      skin_tone: charSkin, 
+      motivation: charMotivation,
+      setting: charSetting
     }]);
     // Reset char form
     setCharName('');
@@ -67,6 +71,7 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
     setCharNationality('');
     setCharSkin('');
     setCharMotivation('');
+    setCharSetting('');
   };
 
   const handleCreate = async () => {
@@ -89,11 +94,34 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
         scriptTitle = sanitizeInput(title) || 'Untitled Screenplay';
       }
 
-      await api.createScript({
+      const script = await api.createScript({
         title: scriptTitle,
         author: sanitizeInput(author) || 'Anonymous',
         content,
       });
+
+      const scriptId = script.id;
+      setCreatedScriptId(scriptId);
+
+      // Save character profiles if any were added
+      if (characters.length > 0) {
+        for (const char of characters) {
+          try {
+            await api.createCharacter(scriptId, char);
+          } catch (e) {
+            console.error('Failed to save character:', char.name, e);
+          }
+        }
+      }
+
+      // If uploaded script, extract characters automatically
+      if (creationMode === 'upload' && extractedBlocks.length > 0) {
+        try {
+          await api.extractCharacters(scriptId);
+        } catch (e) {
+          console.error('Failed to auto-extract characters:', e);
+        }
+      }
 
       showSuccess(creationMode === 'upload'
         ? `Script imported from "${uploadedFile?.name}" with ${content.length} blocks.`
@@ -108,6 +136,8 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
       setExtractedBlocks([]);
       setExtractedTitle('');
       setTitle('');
+      setSetting('');
+      setCreatedScriptId(null);
     } catch (err: any) {
       console.error("[NewScriptModal]", err);
       showError("Failed to create script. Please try again.");
@@ -195,6 +225,9 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
                         <SelectItem value="comedy">Comedy</SelectItem>
                         <SelectItem value="drama">Drama</SelectItem>
                         <SelectItem value="sci-fi">Sci-Fi</SelectItem>
+                        <SelectItem value="thriller">Thriller</SelectItem>
+                        <SelectItem value="romance">Romance</SelectItem>
+                        <SelectItem value="horror">Horror</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -210,6 +243,19 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="setting" className="flex items-center gap-1.5">
+                    <MapPin size={12} />
+                    Setting / World
+                  </Label>
+                  <Textarea 
+                    id="setting" 
+                    placeholder="Describe the world/setting of your story (e.g., 'A dystopian future where AI controls everything')" 
+                    value={setting}
+                    onChange={(e) => setSetting(e.target.value)}
+                    className="min-h-[60px] text-sm"
+                  />
                 </div>
               </TabsContent>
 
@@ -233,7 +279,7 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
                 </div>
                 {extractedBlocks.length > 0 && (
                   <p className="text-xs text-green-600 dark:text-green-400 font-medium">
-                    Extracted {extractedBlocks.length} screenplay blocks ready for import.
+                    Extracted {extractedBlocks.length} screenplay blocks ready for import. Characters will be auto-extracted.
                   </p>
                 )}
               </TabsContent>
@@ -287,6 +333,18 @@ const NewScriptModal = ({ children, onComplete }: { children?: React.ReactNode, 
                   onChange={e => setCharMotivation(e.target.value)}
                   placeholder="What is their primary goal?" 
                   className="min-h-[60px] text-xs" 
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] flex items-center gap-1.5">
+                  <MapPin size={10} />
+                  Scene Setting
+                </Label>
+                <Input 
+                  value={charSetting} 
+                  onChange={e => setCharSetting(e.target.value)}
+                  placeholder="Key scenes/locations where they appear" 
+                  className="h-8" 
                 />
               </div>
               <Button type="button" size="sm" className="w-full" onClick={addCharacter}>Add Actor to Script</Button>

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiPrompt } from "@/utils/ai-client";
 import { showError } from "@/utils/toast";
+import { extractJSONFromResponse } from "@/utils/json-extract";
 
 interface ScriptBlock {
   id: string;
@@ -61,21 +62,25 @@ const CastingSuggestions = ({ blocks, characters }: CastingSuggestionsProps) => 
       .map(b => b.content);
 
     const { text, error } = await aiPrompt(
-      `You are an expert Hollywood casting director. Analyze this character and provide casting suggestions.
+      `You are a professional Hollywood casting director with 20+ years of experience. Your job is to suggest the perfect actors for each character.
+
+TASK: Analyze this character and create a detailed casting profile.
 
 Character name: ${name}
 Their dialogue lines: ${charDialogue.join(' | ') || 'None found'}
 Action lines mentioning them: ${charActions.join(' | ') || 'None found'}
 
 Return a JSON object with:
-- "archetype": the character archetype (e.g. "The Reluctant Hero", "Femme Fatale", "Wise Mentor")
-- "ageRange": suggested age range (e.g. "30-45")
-- "physicalDescription": suggested physical characteristics based on their role
-- "personality": key personality traits inferred from dialogue and actions
-- "actorComparisons": array of 3 real actor names whose style fits this character (e.g. ["Oscar Isaac", "Pedro Pascal", "Dev Patel"])
-- "castingNotes": brief professional casting notes for auditions
+- "archetype": the character archetype (e.g., "The Reluctant Hero", "Femme Fatale", "Wise Mentor", "Tragic Villain", "Lovable Rogue")
+- "ageRange": suggested age range (e.g., "30-45", "18-25", "50-65")
+- "physicalDescription": suggested physical traits based on their role and personality
+- "personality": key personality traits inferred from their dialogue and actions
+- "actorComparisons": array of 3 real actor names whose style/personality fits this character (choose actors CURRENTLY working)
+- "castingNotes": professional casting notes for auditions - what to look for, what to avoid
 
-Return ONLY valid JSON object, no markdown fences.`,
+Be specific and professional. These casting notes will be used in real casting sessions.
+
+CRITICAL: Return ONLY valid JSON. No markdown fences.`,
       `Analyze character: ${name}`,
       0.6
     );
@@ -87,12 +92,13 @@ Return ONLY valid JSON object, no markdown fences.`,
       return;
     }
 
-    try {
-      const parsed = JSON.parse(text.trim());
+    const parsed = extractJSONFromResponse(text);
+    if (parsed && !Array.isArray(parsed)) {
       setProfile(parsed);
       setCache(prev => ({ ...prev, [name]: parsed }));
-    } catch {
-      showError("Failed to parse casting results.");
+    } else {
+      console.error('[CastingSuggestions] Failed to parse:', text?.substring(0, 200));
+      showError("Failed to parse casting results. Please try again.");
     }
   };
 
