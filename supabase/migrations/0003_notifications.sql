@@ -1,4 +1,4 @@
--- Migration 0003: Notifications + updated signup trigger with welcome notifications
+-- Migration 0003: Notifications + lightweight signup trigger
 
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -18,34 +18,16 @@ CREATE POLICY "notifications_delete" ON public.notifications FOR DELETE TO authe
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON public.notifications (user_id, created_at DESC);
 
--- Update handle_new_user to seed welcome notifications
+-- Simple trigger: just create profile + welcome notifications
+-- Welcome script/storyboard seeding is handled via the ScriptFlow API on first login
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = ''
 AS $$
-DECLARE
-  new_script_id UUID;
 BEGIN
   INSERT INTO public.profiles (id, first_name)
-  VALUES (new.id, new.raw_user_meta_data ->> 'first_name');
-
-  INSERT INTO public.scripts (user_id, title, author, genre, content)
-  VALUES (
-    new.id,
-    'The Neon Horizon',
-    COALESCE(new.raw_user_meta_data ->> 'first_name', 'Anonymous'),
-    'Sci-Fi',
-    '[{"id":"1","type":"slugline","content":"EXT. CITY SKYLINE - NIGHT"},{"id":"2","type":"action","content":"Rain hammers the neon-lit streets. A lone figure stands at the edge of the rooftop."},{"id":"3","type":"character","content":"KAI"},{"id":"4","type":"parenthetical","content":"breathing heavily"},{"id":"5","type":"dialogue","content":"This wasn\'t the plan."}]'::jsonb
-  ) RETURNING id INTO new_script_id;
-
-  INSERT INTO public.storyboards (script_id, user_id, data, aspect_ratio)
-  VALUES (
-    new_script_id,
-    new.id,
-    '[{"id":"1","sceneTitle":"EXT. CITY SKYLINE - NIGHT","shotNumber":"01","shotType":"W.S","cameraAngle":"High Angle","movement":"Static","lens":"24mm","emotion":"Tense","lighting":"Neon","colorGrade":"Teal & Orange","visualPrompt":"Cinematic rain, neon city, lone figure.","audioTag":"[Ambient]","sfx":"Rain","transition":"FADE IN"}]'::jsonb,
-    '2.39:1'
-  );
+  VALUES (new.id, COALESCE(new.raw_user_meta_data->>'first_name', 'Anonymous'));
 
   INSERT INTO public.notifications (user_id, title, message, type, link) VALUES
     (new.id, 'Welcome to ScriptFlow!', 'Your creative journey starts here. Start by exploring your sample screenplay.', 'welcome', '/dashboard'),
