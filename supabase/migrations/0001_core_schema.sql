@@ -87,7 +87,7 @@ BEGIN
   VALUES (
     new_script_id,
     new.id,
-    '[{"id":"1","sceneTitle":"EXT. CITY SKYLINE - NIGHT","shotNumber":"01","shotType":"W.S","cameraAngle":"High Angle","movement":"Static","lens":"24mm","emotion":"Tense","lighting":"Neon","colorGrade":"Teal & Orange","visualPrompt":"Cinematic rain, neon city, lone figure.","audioTag":"[Ambient]","sfx":"Rain","transition":"FADE IN"}]'::jsonb,
+    '[{"id":"1","sceneTitle":"EXT. CITY SKYLINE - NIGHT","shotNumber":"01","shotType":"WIDE SHOT","cameraAngle":"High Angle","movement":"Static","lens":"24mm","emotion":"Tense","lighting":"Neon","colorGrade":"Teal Orange","visualPrompt":"Cinematic rain, neon city, lone figure.","audioTag":"[Ambient]","sfx":"Rain","transition":"FADE IN"}]'::jsonb,
     '2.39:1'
   );
 
